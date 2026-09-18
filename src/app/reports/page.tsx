@@ -150,11 +150,11 @@ export default function ReportsPage() {
         <p className="text-muted-foreground">Analyze your spending patterns over time.</p>
       </div>
 
-      <Tabs defaultValue="monthly" className="space-y-4">
+      <Tabs defaultValue="categories" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Overview</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>
 
         <TabsContent value="monthly" className="space-y-4">
