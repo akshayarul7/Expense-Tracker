@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 safe-pb md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 safe-pb md:p-6">
           {children}
         </main>
       </div>

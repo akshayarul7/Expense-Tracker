@@ -149,7 +149,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Daily Spending ({format(currentMonthDate, 'MMM yyyy')})</CardTitle>
           </CardHeader>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Category Breakdown</CardTitle>
           </CardHeader>
