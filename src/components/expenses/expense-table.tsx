@@ -46,7 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 
 interface ExpenseTableProps {
   onEdit: (expense: Expense) => void;
@@ -58,8 +57,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
   const [categoryFilter, setCategoryFilter] = useState<string>('All Categories');
   const [monthFilter, setMonthFilter] = useState<string>('All Months');
   const [yearFilter, setYearFilter] = useState<string>('All Years');
-  const [minAmount, setMinAmount] = useState<string>('');
-  const [maxAmount, setMaxAmount] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('date-desc');
 
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -83,18 +81,25 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
       if (yearFilter !== 'All Years') {
         data = data.filter(e => new Date(e.date).getFullYear().toString() === yearFilter);
       }
-      if (minAmount) {
-        data = data.filter(e => e.amount >= parseFloat(minAmount));
-      }
-      if (maxAmount) {
-        data = data.filter(e => e.amount <= parseFloat(maxAmount));
-      }
+      
+      data.sort((a, b) => {
+        if (sortBy === 'date-desc') {
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        } else if (sortBy === 'date-asc') {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        } else if (sortBy === 'amount-desc') {
+          return b.amount - a.amount;
+        } else if (sortBy === 'amount-asc') {
+          return a.amount - b.amount;
+        }
+        return 0;
+      });
 
       setExpenses(data);
     } catch(e) {
       console.error(e);
     }
-  }, [categoryFilter, monthFilter, yearFilter, minAmount, maxAmount]);
+  }, [categoryFilter, monthFilter, yearFilter, sortBy]);
 
   useEffect(() => {
     fetchExpenses();
@@ -237,23 +242,17 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
           </SelectContent>
         </Select>
 
-        <div className="flex items-center space-x-2">
-          <Input 
-            type="number" 
-            placeholder="Min $" 
-            className="w-[90px]"
-            value={minAmount}
-            onChange={e => setMinAmount(e.target.value)}
-          />
-          <span className="text-muted-foreground">-</span>
-          <Input 
-            type="number" 
-            placeholder="Max $" 
-            className="w-[90px]"
-            value={maxAmount}
-            onChange={e => setMaxAmount(e.target.value)}
-          />
-        </div>
+        <Select value={sortBy} onValueChange={(val) => setSortBy(val)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Sort By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date-desc">Newest First</SelectItem>
+            <SelectItem value="date-asc">Oldest First</SelectItem>
+            <SelectItem value="amount-desc">Highest Amount</SelectItem>
+            <SelectItem value="amount-asc">Lowest Amount</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-md border">
