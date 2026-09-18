@@ -128,3 +128,11 @@
     @apply font-sans;
   }
 }
+@layer utilities {
+  .safe-pt {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  .safe-pb {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
