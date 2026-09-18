@@ -50,7 +50,10 @@ export default function ReportsPage() {
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    expenses.forEach(e => years.add(new Date(e.date).getFullYear()));
+    expenses.forEach(e => {
+      const y = new Date(e.date).getFullYear();
+      if (y <= new Date().getFullYear()) years.add(y);
+    });
     years.add(new Date().getFullYear()); // Always include current year
     years.add(selectedYear); // Always include the selected year so the dropdown doesn't break when navigating to empty years
     return Array.from(years).sort((a, b) => b - a);
@@ -60,6 +63,12 @@ export default function ReportsPage() {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  const currentRealDate = new Date();
+  const currentRealMonth = currentRealDate.getMonth();
+  const currentRealYear = currentRealDate.getFullYear();
+
+  const isNextMonthDisabled = selectedYear > currentRealYear || (selectedYear === currentRealYear && selectedMonth >= currentRealMonth);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -71,6 +80,8 @@ export default function ReportsPage() {
   };
 
   const handleNextMonth = () => {
+    if (isNextMonthDisabled) return;
+    
     if (selectedMonth === 11) {
       setSelectedMonth(0);
       setSelectedYear(prev => prev + 1);
@@ -155,8 +166,12 @@ export default function ReportsPage() {
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MONTHS.map((month) => (
-                    <SelectItem key={month} value={month}>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem 
+                      key={month} 
+                      value={month}
+                      disabled={selectedYear === currentRealYear && index > currentRealMonth}
+                    >
                       {month}
                     </SelectItem>
                   ))}
@@ -178,7 +193,13 @@ export default function ReportsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNextMonth}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-9 w-9" 
+                onClick={handleNextMonth}
+                disabled={isNextMonthDisabled}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -257,8 +278,12 @@ export default function ReportsPage() {
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MONTHS.map((month) => (
-                    <SelectItem key={month} value={month}>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem 
+                      key={month} 
+                      value={month}
+                      disabled={selectedYear === currentRealYear && index > currentRealMonth}
+                    >
                       {month}
                     </SelectItem>
                   ))}
@@ -280,7 +305,13 @@ export default function ReportsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNextMonth}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-9 w-9" 
+                onClick={handleNextMonth}
+                disabled={isNextMonthDisabled}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
