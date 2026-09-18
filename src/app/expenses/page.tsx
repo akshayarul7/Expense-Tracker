@@ -37,7 +37,7 @@ export default function ExpensesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Expenses</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <PlaidSyncButton refreshKey={refreshKey} />
+          <PlaidSyncButton refreshKey={refreshKey} onSyncComplete={triggerRefresh} />
           <Button onClick={handleAddExpenseClick}>
             <Plus className="mr-2 h-4 w-4" />
             Add Expense

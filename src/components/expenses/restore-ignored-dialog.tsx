@@ -48,7 +48,7 @@ export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered, r
     setRestoringId(plaidId);
     try {
       await supabase.from('ignored_transactions').delete().eq('plaid_id', plaidId);
-      await fetchIgnored();
+      setIgnored((prev) => prev.filter((item) => item.plaidId !== plaidId));
       onRestoreTriggered();
     } finally {
       setRestoringId(null);

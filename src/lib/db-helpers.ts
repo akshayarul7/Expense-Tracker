@@ -222,3 +222,26 @@ export async function getAllIgnoredTransactions(): Promise<IgnoredTransaction[]>
   if (error) throw error;
   return data.map(d => ({ plaidId: d.plaid_id, name: d.name, amount: d.amount, date: new Date(d.date), deletedAt: new Date(d.deleted_at) }));
 }
+
+export async function getPlaidToken(): Promise<string | null> {
+  const userId = await getUserId();
+  const { data } = await supabase
+    .from('plaid_connections')
+    .select('access_token')
+    .eq('user_id', userId)
+    .single();
+  return data?.access_token || null;
+}
+
+export async function savePlaidToken(token: string): Promise<void> {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from('plaid_connections')
+    .upsert({ user_id: userId, access_token: token }, { onConflict: 'user_id' });
+  if (error) { console.error('Failed to save plaid token:', error); throw error; }
+}
+
+export async function clearPlaidToken(): Promise<void> {
+  const userId = await getUserId();
+  await supabase.from('plaid_connections').delete().eq('user_id', userId);
+}
