@@ -10,6 +10,7 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MonthlyChart } from '@/components/reports/monthly-chart';
 import { TrendChart } from '@/components/reports/trend-chart';
 import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category-pie-chart';
@@ -51,13 +52,32 @@ export default function ReportsPage() {
     const years = new Set<number>();
     expenses.forEach(e => years.add(new Date(e.date).getFullYear()));
     years.add(new Date().getFullYear()); // Always include current year
+    years.add(selectedYear); // Always include the selected year so the dropdown doesn't break when navigating to empty years
     return Array.from(years).sort((a, b) => b - a);
-  }, [expenses]);
+  }, [expenses, selectedYear]);
 
   const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear(prev => prev + 1);
+    } else {
+      setSelectedMonth(prev => prev + 1);
+    }
+  };
 
   // Monthly Overview Data
   const start = startOfMonth(currentMonth);
@@ -124,11 +144,14 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Monthly Overview</h2>
             <div className="flex items-center space-x-2">
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
               <Select 
                 value={MONTHS[selectedMonth]} 
                 onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val as string))}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[120px] md:w-[140px]">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -144,7 +167,7 @@ export default function ReportsPage() {
                 value={selectedYear.toString()} 
                 onValueChange={(val) => setSelectedYear(parseInt(val as string))}
               >
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-[90px] md:w-[100px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -155,6 +178,9 @@ export default function ReportsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -220,11 +246,14 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Category Analysis</h2>
             <div className="flex items-center space-x-2">
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
               <Select 
                 value={MONTHS[selectedMonth]} 
                 onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val as string))}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-[120px] md:w-[140px]">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -240,7 +269,7 @@ export default function ReportsPage() {
                 value={selectedYear.toString()} 
                 onValueChange={(val) => setSelectedYear(parseInt(val as string))}
               >
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-[90px] md:w-[100px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -251,6 +280,9 @@ export default function ReportsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
