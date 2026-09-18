@@ -5,25 +5,27 @@ import { Header } from "./header"
 import { Sidebar } from "./sidebar"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { processPlaidTransactions } from '@/lib/plaid-sync'
+import { getPlaidToken } from '@/lib/db-helpers'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false)
 
   React.useEffect(() => {
-    const token = localStorage.getItem('plaid_access_token');
-    if (token) {
-      // Background auto-sync on launch
-      fetch('/api/plaid/sync-transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: token, days: 30 }), // fetch last 30 days for quick sync
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.transactions) processPlaidTransactions(data.transactions, data.accounts);
+    getPlaidToken().then((token) => {
+      if (token) {
+        // Background auto-sync on launch
+        fetch('/api/plaid/sync-transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: token, days: 30 }), // fetch last 30 days for quick sync
         })
-        .catch(console.error);
-    }
+          .then(res => res.json())
+          .then(data => {
+            if (data.transactions) processPlaidTransactions(data.transactions, data.accounts);
+          })
+          .catch(console.error);
+      }
+    });
   }, []);
 
   return (
