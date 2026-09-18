@@ -10,7 +10,8 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { MonthlyChart } from '@/components/reports/monthly-chart';
 import { TrendChart } from '@/components/reports/trend-chart';
 import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category-pie-chart';
@@ -23,6 +24,11 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  // Dialog table state
+  const [dialogSort, setDialogSort] = useState<{column: 'date' | 'amount', dir: 'desc' | 'asc'}>({ column: 'date', dir: 'desc' });
+  const [dialogMinAmount, setDialogMinAmount] = useState('');
+  const [dialogMaxAmount, setDialogMaxAmount] = useState('');
 
   const currentMonth = useMemo(() => new Date(selectedYear, selectedMonth, 1), [selectedYear, selectedMonth]);
 
@@ -384,19 +390,68 @@ export default function ReportsPage() {
               {format(currentMonth, 'MMMM yyyy')}
             </DialogDescription>
           </DialogHeader>
+          
+          <div className="flex items-center space-x-2 py-2">
+            <Input 
+              type="number" 
+              placeholder="Min $" 
+              className="w-[90px] h-8 text-sm"
+              value={dialogMinAmount}
+              onChange={e => setDialogMinAmount(e.target.value)}
+            />
+            <span className="text-muted-foreground text-sm">-</span>
+            <Input 
+              type="number" 
+              placeholder="Max $" 
+              className="w-[90px] h-8 text-sm"
+              value={dialogMaxAmount}
+              onChange={e => setDialogMaxAmount(e.target.value)}
+            />
+          </div>
+
           <div className="max-h-[400px] overflow-y-auto border rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setDialogSort(s => ({ column: 'date', dir: s.column === 'date' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      className="-ml-4 h-8 data-[state=open]:bg-accent"
+                    >
+                      <span>Date</span>
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setDialogSort(s => ({ column: 'amount', dir: s.column === 'amount' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      className="-mr-4 h-8 justify-end data-[state=open]:bg-accent"
+                    >
+                      <span>Amount</span>
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {monthlyExpenses
                   .filter(e => e.category === selectedCategory)
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .filter(e => dialogMinAmount ? e.amount >= parseFloat(dialogMinAmount) : true)
+                  .filter(e => dialogMaxAmount ? e.amount <= parseFloat(dialogMaxAmount) : true)
+                  .sort((a, b) => {
+                    if (dialogSort.column === 'date') {
+                      return dialogSort.dir === 'desc' 
+                        ? new Date(b.date).getTime() - new Date(a.date).getTime()
+                        : new Date(a.date).getTime() - new Date(b.date).getTime();
+                    } else {
+                      return dialogSort.dir === 'desc' 
+                        ? b.amount - a.amount 
+                        : a.amount - b.amount;
+                    }
+                  })
                   .map(expense => (
                   <TableRow key={expense.id}>
                     <TableCell>{format(new Date(expense.date), 'MMM d')}</TableCell>

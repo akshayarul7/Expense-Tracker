@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface ExpenseTableProps {
   onEdit: (expense: Expense) => void;
@@ -55,6 +56,11 @@ interface ExpenseTableProps {
 
 export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>('All Categories');
+  const [monthFilter, setMonthFilter] = useState<string>('All Months');
+  const [yearFilter, setYearFilter] = useState<string>('All Years');
+  const [minAmount, setMinAmount] = useState<string>('');
+  const [maxAmount, setMaxAmount] = useState<string>('');
+
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -64,19 +70,31 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
 
   const fetchExpenses = useCallback(async () => {
     try {
+      const start = new Date('2000-01-01');
+      const end = new Date('2100-01-01');
+      let data = await getExpensesByDateRange(start, end);
+
       if (categoryFilter !== 'All Categories') {
-        const data = await getExpensesByCategory(categoryFilter);
-        setExpenses(data);
-      } else {
-        const start = new Date('2000-01-01');
-        const end = new Date('2100-01-01');
-        const data = await getExpensesByDateRange(start, end);
-        setExpenses(data);
+        data = data.filter(e => e.category === categoryFilter);
       }
+      if (monthFilter !== 'All Months') {
+        data = data.filter(e => new Date(e.date).getMonth().toString() === monthFilter);
+      }
+      if (yearFilter !== 'All Years') {
+        data = data.filter(e => new Date(e.date).getFullYear().toString() === yearFilter);
+      }
+      if (minAmount) {
+        data = data.filter(e => e.amount >= parseFloat(minAmount));
+      }
+      if (maxAmount) {
+        data = data.filter(e => e.amount <= parseFloat(maxAmount));
+      }
+
+      setExpenses(data);
     } catch(e) {
       console.error(e);
     }
-  }, [categoryFilter]);
+  }, [categoryFilter, monthFilter, yearFilter, minAmount, maxAmount]);
 
   useEffect(() => {
     fetchExpenses();
@@ -175,10 +193,10 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-2">
         <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val || 'All Categories')}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by category" />
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All Categories">All Categories</SelectItem>
@@ -189,6 +207,53 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
             ))}
           </SelectContent>
         </Select>
+
+        <Select value={monthFilter} onValueChange={(val) => setMonthFilter(val || 'All Months')}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All Months">All Months</SelectItem>
+            {[
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ].map((m, i) => (
+              <SelectItem key={m} value={i.toString()}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={yearFilter} onValueChange={(val) => setYearFilter(val || 'All Years')}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All Years">All Years</SelectItem>
+            {/* Generate last 10 years up to current year */}
+            {Array.from({ length: 10 }).map((_, i) => {
+              const y = new Date().getFullYear() - i;
+              return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>;
+            })}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center space-x-2">
+          <Input 
+            type="number" 
+            placeholder="Min $" 
+            className="w-[90px]"
+            value={minAmount}
+            onChange={e => setMinAmount(e.target.value)}
+          />
+          <span className="text-muted-foreground">-</span>
+          <Input 
+            type="number" 
+            placeholder="Max $" 
+            className="w-[90px]"
+            value={maxAmount}
+            onChange={e => setMaxAmount(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="rounded-md border">
