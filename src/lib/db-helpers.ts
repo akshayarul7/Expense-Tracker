@@ -208,7 +208,19 @@ export async function getRecurringExpenses(): Promise<Expense[]> {
     .order('date', { ascending: false });
     
   if (error) throw error;
-  return data.map(mapExpense);
+  
+  const mapped = data.map(mapExpense);
+  
+  // Deduplicate by name so we only show one card per subscription
+  const uniqueSubs = new Map<string, Expense>();
+  for (const exp of mapped) {
+    const key = exp.name.toLowerCase().trim();
+    if (!uniqueSubs.has(key)) {
+      uniqueSubs.set(key, exp);
+    }
+  }
+  
+  return Array.from(uniqueSubs.values());
 }
 
 export async function getAllIgnoredTransactions(): Promise<IgnoredTransaction[]> {
