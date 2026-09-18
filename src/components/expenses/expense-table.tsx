@@ -88,7 +88,7 @@ export function ExpenseTable({ onEdit }: ExpenseTableProps) {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      await deleteExpense(id);
+      try { await deleteExpense(id); } catch(e: any) { alert("Failed to delete: " + e.message); }
     }
   };
 

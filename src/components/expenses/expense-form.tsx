@@ -91,12 +91,14 @@ export function ExpenseForm({ open, onOpenChange, expense }: ExpenseFormProps) {
     }, [expense, form, open]);
   
     async function onSubmit(data: any) {
+      try {
       if (expense && expense.id) {
         await updateExpense(expense.id, data);
       } else {
         await addExpense(data);
       }
       onOpenChange(false);
+      } catch (e: any) { alert("Failed to save: " + e.message); }
     }
   
     const isRecurring = form.watch('isRecurring');
