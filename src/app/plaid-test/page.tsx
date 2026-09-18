@@ -29,7 +29,8 @@ export default function PlaidTestPage() {
     generateToken();
   }, []);
 
-  const onSuccess = useCallback(async (public_token: string, metadata: any) => {
+  const onSuccess = useCallback(async (public_token: string | null, metadata: any) => {
+    if (!public_token) return;
     setLoading(true);
     setError(null);
     try {
