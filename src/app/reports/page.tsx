@@ -1,0 +1,328 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { MonthlyChart } from '@/components/reports/monthly-chart';
+import { TrendChart } from '@/components/reports/trend-chart';
+import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category-pie-chart';
+import { formatCurrency } from '@/lib/constants';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+export default function ReportsPage() {
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const currentMonth = useMemo(() => new Date(selectedYear, selectedMonth, 1), [selectedYear, selectedMonth]);
+
+  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    expenses.forEach(e => years.add(new Date(e.date).getFullYear()));
+    years.add(new Date().getFullYear()); // Always include current year
+    return Array.from(years).sort((a, b) => b - a);
+  }, [expenses]);
+
+  const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Monthly Overview Data
+  const start = startOfMonth(currentMonth);
+  const end = endOfMonth(currentMonth);
+  
+  const monthlyExpenses = expenses.filter(e => {
+    const d = new Date(e.date);
+    return d >= start && d <= end;
+  });
+
+  const categoryTotals = monthlyExpenses.reduce((acc, curr) => {
+    acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const monthlyChartData = Object.entries(categoryTotals)
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total);
+
+  const pieChartData = monthlyChartData.map(d => ({
+    ...d,
+    fill: CATEGORY_COLORS[d.category] || CATEGORY_COLORS['Other']
+  }));
+
+  const totalSpent = monthlyChartData.reduce((sum, item) => sum + item.total, 0);
+  const daysInMonth = end.getDate();
+  const averageDaily = totalSpent / daysInMonth;
+  const highestCategory = monthlyChartData.length > 0 ? monthlyChartData[0] : null;
+
+  // Trend Data (Last 6 Months)
+  const trendData = Array.from({ length: 6 }).map((_, i) => {
+    const d = subMonths(new Date(), 5 - i);
+    const monthStart = startOfMonth(d);
+    const monthEnd = endOfMonth(d);
+    
+    const monthTotal = expenses
+      .filter(e => {
+        const ed = new Date(e.date);
+        return ed >= monthStart && ed <= monthEnd;
+      })
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    return {
+      month: format(d, 'MMM yy'),
+      total: monthTotal,
+    };
+  }).reverse();
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
+        <p className="text-muted-foreground">Analyze your spending patterns over time.</p>
+      </div>
+
+      <Tabs defaultValue="monthly" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="monthly">Monthly Overview</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="monthly" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Monthly Overview</h2>
+            <div className="flex items-center space-x-2">
+              <Select 
+                value={MONTHS[selectedMonth]} 
+                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val))}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month) => (
+                    <SelectItem key={month} value={month}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select 
+                value={selectedYear.toString()} 
+                onValueChange={(val) => setSelectedYear(parseInt(val))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Average Daily</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(averageDaily)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Highest Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold truncate">{highestCategory ? highestCategory.category : 'N/A'}</div>
+                {highestCategory && (
+                  <p className="text-xs text-muted-foreground">{formatCurrency(highestCategory.total)}</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Category Spending</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {monthlyChartData.length > 0 ? (
+                <MonthlyChart data={monthlyChartData} />
+              ) : (
+                <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                  No expenses this month.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>6-Month Trend</CardTitle>
+              <CardDescription>Total spending over the last 6 months.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrendChart data={trendData} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="categories" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Category Analysis</h2>
+            <div className="flex items-center space-x-2">
+              <Select 
+                value={MONTHS[selectedMonth]} 
+                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val))}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month) => (
+                    <SelectItem key={month} value={month}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select 
+                value={selectedYear.toString()} 
+                onValueChange={(val) => setSelectedYear(parseInt(val))}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pieChartData.length > 0 ? (
+                  <CategoryPieChart data={pieChartData} />
+                ) : (
+                  <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                    No expenses this month.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pieChartData.map((d) => (
+                      <TableRow 
+                        key={d.category}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedCategory(d.category)}
+                      >
+                        <TableCell className="font-medium flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.fill }} />
+                          {d.category}
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(d.total)}</TableCell>
+                        <TableCell className="text-right">
+                          {totalSpent > 0 ? ((d.total / totalSpent) * 100).toFixed(1) : 0}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {pieChartData.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
+                          No data available.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={!!selectedCategory} onOpenChange={(open) => !open && setSelectedCategory(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{selectedCategory} Expenses</DialogTitle>
+            <DialogDescription>
+              {format(currentMonth, 'MMMM yyyy')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[400px] overflow-y-auto border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthlyExpenses
+                  .filter(e => e.category === selectedCategory)
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map(expense => (
+                  <TableRow key={expense.id}>
+                    <TableCell>{format(new Date(expense.date), 'MMM d')}</TableCell>
+                    <TableCell>{expense.name || expense.category}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(expense.amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
