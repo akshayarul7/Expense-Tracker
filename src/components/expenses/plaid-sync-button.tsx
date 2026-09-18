@@ -31,7 +31,8 @@ export function PlaidSyncButton() {
     }
   }, []);
 
-  const onSuccess = useCallback(async (public_token: string) => {
+  const onSuccess = useCallback(async (public_token: string | null) => {
+    if (!public_token) return;
     setIsSyncing(true);
     try {
       // Exchange public token

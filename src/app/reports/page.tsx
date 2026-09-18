@@ -103,7 +103,7 @@ export default function ReportsPage() {
             <div className="flex items-center space-x-2">
               <Select 
                 value={MONTHS[selectedMonth]} 
-                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val))}
+                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val as string))}
               >
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Month" />
@@ -119,7 +119,7 @@ export default function ReportsPage() {
               
               <Select 
                 value={selectedYear.toString()} 
-                onValueChange={(val) => setSelectedYear(parseInt(val))}
+                onValueChange={(val) => setSelectedYear(parseInt(val as string))}
               >
                 <SelectTrigger className="w-[100px]">
                   <SelectValue placeholder="Year" />
@@ -199,7 +199,7 @@ export default function ReportsPage() {
             <div className="flex items-center space-x-2">
               <Select 
                 value={MONTHS[selectedMonth]} 
-                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val))}
+                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val as string))}
               >
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Month" />
@@ -215,7 +215,7 @@ export default function ReportsPage() {
               
               <Select 
                 value={selectedYear.toString()} 
-                onValueChange={(val) => setSelectedYear(parseInt(val))}
+                onValueChange={(val) => setSelectedYear(parseInt(val as string))}
               >
                 <SelectTrigger className="w-[100px]">
                   <SelectValue placeholder="Year" />
