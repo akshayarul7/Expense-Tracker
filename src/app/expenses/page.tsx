@@ -11,6 +11,9 @@ import { PlaidSyncButton } from '@/components/expenses/plaid-sync-button';
 export default function ExpensesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const triggerRefresh = () => setRefreshKey((k) => k + 1);
 
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
@@ -20,7 +23,6 @@ export default function ExpensesPage() {
   const handleOpenChange = (open: boolean) => {
     setFormOpen(open);
     if (!open) {
-      // Small timeout to allow dialog close animation before clearing data
       setTimeout(() => setEditingExpense(null), 300);
     }
   };
@@ -35,7 +37,7 @@ export default function ExpensesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Expenses</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <PlaidSyncButton />
+          <PlaidSyncButton refreshKey={refreshKey} />
           <Button onClick={handleAddExpenseClick}>
             <Plus className="mr-2 h-4 w-4" />
             Add Expense
@@ -43,12 +45,13 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      <ExpenseTable onEdit={handleEdit} />
+      <ExpenseTable onEdit={handleEdit} refreshKey={refreshKey} onDelete={triggerRefresh} />
 
       <ExpenseForm
         open={formOpen}
         onOpenChange={handleOpenChange}
         expense={editingExpense}
+        onSave={triggerRefresh}
       />
     </div>
   );

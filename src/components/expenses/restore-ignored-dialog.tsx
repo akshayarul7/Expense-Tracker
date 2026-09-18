@@ -21,9 +21,10 @@ interface RestoreIgnoredDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestoreTriggered: () => void;
+  refreshKey?: number;
 }
 
-export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered }: RestoreIgnoredDialogProps) {
+export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered, refreshKey }: RestoreIgnoredDialogProps) {
   const [ignored, setIgnored] = useState<IgnoredTransaction[]>([]);
 
   const fetchIgnored = useCallback(async () => {
@@ -36,20 +37,19 @@ export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered }:
   }, []);
 
   useEffect(() => {
-    fetchIgnored();
-    const channel = supabase
-      .channel('ignored-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ignored_transactions' }, fetchIgnored)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchIgnored]);
+    if (open) {
+      fetchIgnored();
+    }
+  }, [fetchIgnored, open, refreshKey]);
+
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const handleRestore = async (plaidId: string) => {
     setRestoringId(plaidId);
     try {
       await supabase.from('ignored_transactions').delete().eq('plaid_id', plaidId);
-      onRestoreTriggered(); // Triggers a sync in the parent to fetch the data
+      await fetchIgnored();
+      onRestoreTriggered();
     } finally {
       setRestoringId(null);
     }

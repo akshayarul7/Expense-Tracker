@@ -12,7 +12,7 @@ import { getAllIgnoredTransactions } from '@/lib/db-helpers';
 import { RestoreIgnoredDialog } from './restore-ignored-dialog';
 import { RefreshCw, Building2 } from 'lucide-react';
 
-export function PlaidSyncButton() {
+export function PlaidSyncButton({ refreshKey }: { refreshKey?: number }) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasToken, setHasToken] = useState(false);
@@ -112,11 +112,7 @@ export function PlaidSyncButton() {
       } catch (e) {}
     }
     checkIgnored();
-    const channel = supabase.channel('ignored-sync-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ignored_transactions' }, checkIgnored)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [refreshKey]);
 
   return (
     <>
@@ -124,6 +120,7 @@ export function PlaidSyncButton() {
         open={restoreOpen} 
         onOpenChange={setRestoreOpen}
         onRestoreTriggered={handleSync}
+        refreshKey={refreshKey}
       />
       <div className="flex items-center gap-2">
         {ignoredCount > 0 && (

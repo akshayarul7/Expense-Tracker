@@ -8,7 +8,7 @@ export const expenseSchema = z.object({
   date: z.coerce.date(),
   notes: z.string().default(''),
   isRecurring: z.boolean().default(false),
-  recurringFrequency: z.enum(RECURRING_FREQUENCIES).optional(),
+  recurringFrequency: z.enum(RECURRING_FREQUENCIES).optional().nullable(),
 }).refine(
   (data) => !data.isRecurring || data.recurringFrequency,
   { message: 'Frequency is required for recurring expenses', path: ['recurringFrequency'] }

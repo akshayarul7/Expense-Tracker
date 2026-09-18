@@ -49,9 +49,11 @@ import {
 
 interface ExpenseTableProps {
   onEdit: (expense: Expense) => void;
+  refreshKey?: number;
+  onDelete?: () => void;
 }
 
-export function ExpenseTable({ onEdit }: ExpenseTableProps) {
+export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>('All Categories');
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -66,7 +68,6 @@ export function ExpenseTable({ onEdit }: ExpenseTableProps) {
         const data = await getExpensesByCategory(categoryFilter);
         setExpenses(data);
       } else {
-        // Just fetch last 10 years to avoid getting everything
         const start = new Date('2000-01-01');
         const end = new Date('2100-01-01');
         const data = await getExpensesByDateRange(start, end);
@@ -79,16 +80,16 @@ export function ExpenseTable({ onEdit }: ExpenseTableProps) {
 
   useEffect(() => {
     fetchExpenses();
-    const channel = supabase
-      .channel('table-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchExpenses]);
+  }, [fetchExpenses, refreshKey]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      try { await deleteExpense(id); } catch(e: any) { alert("Failed to delete: " + e.message); }
+      try {
+        await deleteExpense(id);
+        onDelete?.();
+      } catch(e: any) {
+        alert("Failed to delete: " + e.message);
+      }
     }
   };
 

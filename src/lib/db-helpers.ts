@@ -60,21 +60,28 @@ export async function deleteExpense(id: string): Promise<void> {
   const userId = await getUserId();
   
   // Get it first to see if it has plaidId
-  const { data: expense } = await supabase
+  const { data: expense, error: fetchErr } = await supabase
     .from('expenses')
     .select('*')
     .eq('id', id)
+    .eq('user_id', userId)
     .single();
+
+  console.log('Delete - fetched expense:', expense, 'fetchErr:', fetchErr);
     
   if (expense?.plaid_id) {
-    await supabase.from('ignored_transactions').upsert({
+    console.log('Inserting into ignored_transactions, plaid_id:', expense.plaid_id);
+    const { error: igErr } = await supabase.from('ignored_transactions').upsert({
       plaid_id: expense.plaid_id,
       user_id: userId,
       name: expense.name,
       amount: expense.amount,
       date: expense.date,
       deleted_at: new Date().toISOString()
-    });
+    }, { onConflict: 'plaid_id' });
+    if (igErr) console.error('Failed to add to ignored_transactions:', igErr);
+  } else {
+    console.log('No plaid_id found on expense, skipping ignored_transactions');
   }
   
   const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
