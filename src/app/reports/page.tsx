@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getExpensesByDateRange } from '@/lib/db-helpers';
+import { Expense } from '@/lib/db';
+
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +25,27 @@ export default function ReportsPage() {
 
   const currentMonth = useMemo(() => new Date(selectedYear, selectedMonth, 1), [selectedYear, selectedMonth]);
 
-  const expenses = useLiveQuery(() => db.expenses.toArray(), []) || [];
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  const fetchExpenses = useCallback(async () => {
+    try {
+      const start = new Date('2000-01-01');
+      const end = new Date('2100-01-01');
+      const data = await getExpensesByDateRange(start, end);
+      setExpenses(data);
+    } catch(e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExpenses();
+    const channel = supabase
+      .channel('reports-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchExpenses]);
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();

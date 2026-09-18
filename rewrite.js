@@ -1,4 +1,41 @@
+const fs = require('fs');
 
+// 1. Rewrite db.ts
+let dbTs = `
+import { RecurringFrequency } from './constants';
+
+export interface Expense {
+  id?: string;
+  name: string;
+  amount: number;
+  originalAmount?: number;
+  category: string;
+  date: Date;
+  notes?: string;
+  isRecurring: boolean;
+  recurringFrequency?: RecurringFrequency;
+  createdAt: Date;
+  plaidId?: string;
+}
+
+export interface Budget {
+  id?: string;
+  category: string;
+  monthlyLimit: number;
+}
+
+export interface IgnoredTransaction {
+  plaidId: string;
+  name?: string;
+  amount?: number;
+  date?: Date;
+  deletedAt: Date;
+}
+`;
+fs.writeFileSync('src/lib/db.ts', dbTs);
+
+// 2. Rewrite db-helpers.ts
+let dbHelpersTs = `
 import { Expense, Budget, IgnoredTransaction } from './db';
 import { supabase } from './supabase';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -164,28 +201,7 @@ export async function getExistingPlaidIds(): Promise<string[]> {
   const { data } = await supabase.from('expenses').select('plaid_id').eq('user_id', userId).not('plaid_id', 'is', null);
   return data ? data.map(d => d.plaid_id) : [];
 }
+`;
+fs.writeFileSync('src/lib/db-helpers.ts', dbHelpersTs);
 
-export async function getRecurringExpenses(): Promise<Expense[]> {
-  const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_recurring', true)
-    .order('date', { ascending: false });
-    
-  if (error) throw error;
-  return data.map(mapExpense);
-}
-
-export async function getAllIgnoredTransactions(): Promise<IgnoredTransaction[]> {
-  const userId = await getUserId();
-  const { data, error } = await supabase
-    .from('ignored_transactions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('deleted_at', { ascending: false });
-    
-  if (error) throw error;
-  return data.map(d => ({ plaidId: d.plaid_id, name: d.name, amount: d.amount, date: new Date(d.date), deletedAt: new Date(d.deleted_at) }));
-}
+console.log("Rewrote db.ts and db-helpers.ts");

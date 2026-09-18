@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getExpensesByCategory, getExpensesByDateRange } from '@/lib/db-helpers';
 import { format } from 'date-fns';
 import { MoreHorizontal, Repeat } from 'lucide-react';
 import {
@@ -12,8 +14,9 @@ import {
 } from '@tanstack/react-table/legacy';
 import { flexRender } from '@tanstack/react-table';
 
-import { db, Expense } from '@/lib/db';
+import { Expense } from '@/lib/db';
 import { deleteExpense } from '@/lib/db-helpers';
+import { startOfYear, endOfYear } from 'date-fns';
 import { formatCurrency } from '@/lib/constants';
 import { CATEGORIES } from '@/lib/constants';
 
@@ -55,16 +58,35 @@ export function ExpenseTable({ onEdit }: ExpenseTableProps) {
     pageSize: 10,
   });
 
-  const expenses = useLiveQuery(async () => {
-    let collection = db.expenses.orderBy('date').reverse();
-    if (categoryFilter !== 'All Categories') {
-      collection = db.expenses.where('category').equals(categoryFilter);
-      return (await collection.toArray()).sort((a, b) => b.date.getTime() - a.date.getTime());
-    }
-    return collection.toArray();
-  }, [categoryFilter]) ?? [];
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  const handleDelete = async (id: number) => {
+  const fetchExpenses = useCallback(async () => {
+    try {
+      if (categoryFilter !== 'All Categories') {
+        const data = await getExpensesByCategory(categoryFilter);
+        setExpenses(data);
+      } else {
+        // Just fetch last 10 years to avoid getting everything
+        const start = new Date('2000-01-01');
+        const end = new Date('2100-01-01');
+        const data = await getExpensesByDateRange(start, end);
+        setExpenses(data);
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  }, [categoryFilter]);
+
+  useEffect(() => {
+    fetchExpenses();
+    const channel = supabase
+      .channel('table-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchExpenses]);
+
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
       await deleteExpense(id);
     }

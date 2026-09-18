@@ -1,4 +1,6 @@
+const fs = require('fs');
 
+let statsTs = `
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, format, eachDayOfInterval } from 'date-fns';
@@ -87,3 +89,6 @@ export function useExpenseStats(year: number, month: number) {
 
   return data;
 }
+`;
+fs.writeFileSync('src/hooks/use-expense-stats.ts', statsTs);
+console.log("Rewrote use-expense-stats.ts");

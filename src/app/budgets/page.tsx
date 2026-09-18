@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, Budget } from '@/lib/db';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getAllBudgets } from '@/lib/db-helpers';
+import { Budget } from '@/lib/db';
 import { useExpenseStats } from '@/hooks/use-expense-stats';
 import { BudgetCard } from '@/components/budgets/budget-card';
 import { BudgetForm } from '@/components/budgets/budget-form';
@@ -17,7 +19,25 @@ export default function BudgetsPage() {
   const date = new Date();
   const { budgetStatus = [], isLoading: statsLoading } = useExpenseStats(date.getFullYear(), date.getMonth()) || {};
   
-  const budgets = useLiveQuery(() => db.budgets.toArray(), []);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const fetchBudgets = useCallback(async () => {
+    try {
+      const data = await getAllBudgets();
+      setBudgets(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBudgets();
+    const channel = supabase
+      .channel('budgets-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets' }, fetchBudgets)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchBudgets]);
 
   const handleEdit = (budget: Budget) => {
     setEditingBudget(budget);

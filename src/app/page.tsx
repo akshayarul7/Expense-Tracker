@@ -1,7 +1,10 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getExpensesByDateRange, getAllBudgets } from '@/lib/db-helpers';
+import { Expense, Budget } from '@/lib/db';
+
 import { formatCurrency } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DollarSign, Receipt, TrendingUp, AlertTriangle } from 'lucide-react';
@@ -14,8 +17,32 @@ import { Progress } from '@/components/ui/progress';
 export default function DashboardPage() {
   const currentMonthDate = new Date();
   
-  const expenses = useLiveQuery(() => db.expenses.orderBy('date').reverse().toArray(), []) || [];
-  const budgets = useLiveQuery(() => db.budgets.toArray(), []) || [];
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const start = new Date('2000-01-01');
+      const end = new Date('2100-01-01');
+      const expData = await getExpensesByDateRange(start, end);
+      setExpenses(expData);
+      
+      const bData = await getAllBudgets();
+      setBudgets(bData);
+    } catch(e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const channel = supabase
+      .channel('dashboard-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets' }, fetchData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchData]);
 
   // Recent 5 expenses
   const recentExpenses = expenses.slice(0, 5);

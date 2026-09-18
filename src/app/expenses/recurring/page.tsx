@@ -1,7 +1,9 @@
 'use client';
 
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getRecurringExpenses } from '@/lib/db-helpers';
+
 import { formatCurrency } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { format } from 'date-fns';
@@ -17,15 +19,32 @@ export default function RecurringExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>(undefined);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const allExpenses = useLiveQuery(() => db.expenses.toArray()) || [];
-  const actualRecurring = allExpenses.filter(e => e.isRecurring);
+  const [actualRecurring, setActualRecurring] = useState<Expense[]>([]);
+
+  const fetchRecurring = useCallback(async () => {
+    try {
+      const data = await getRecurringExpenses();
+      setActualRecurring(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecurring();
+    const channel = supabase
+      .channel('recurring-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchRecurring)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchRecurring]);
 
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id?: number) => {
+  const handleDelete = async (id?: string) => {
     if (id) await deleteExpense(id);
   };
 

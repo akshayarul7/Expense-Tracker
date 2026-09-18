@@ -1,4 +1,5 @@
-import { db, Expense, Budget, IgnoredTransaction } from './db';
+import { Expense, Budget, IgnoredTransaction } from './db';
+import { supabase } from './supabase';
 
 interface ExportData {
   version: number;

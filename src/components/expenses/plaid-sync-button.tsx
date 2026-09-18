@@ -5,8 +5,10 @@ import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { processPlaidTransactions } from '@/lib/plaid-sync';
 import { restoreIgnoredTransactions } from '@/lib/db-helpers';
-import { db } from '@/lib/db';
-import { useLiveQuery } from 'dexie-react-hooks';
+
+import { useEffect as useReactEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getAllIgnoredTransactions } from '@/lib/db-helpers';
 import { RestoreIgnoredDialog } from './restore-ignored-dialog';
 import { RefreshCw, Building2 } from 'lucide-react';
 
@@ -101,7 +103,20 @@ export function PlaidSyncButton() {
   };
 
   const [restoreOpen, setRestoreOpen] = useState(false);
-  const ignoredCount = useLiveQuery(() => db.ignoredTransactions?.count() || Promise.resolve(0)) || 0;
+  const [ignoredCount, setIgnoredCount] = useState(0);
+  useReactEffect(() => {
+    async function checkIgnored() {
+      try {
+        const data = await getAllIgnoredTransactions();
+        setIgnoredCount(data.length);
+      } catch (e) {}
+    }
+    checkIgnored();
+    const channel = supabase.channel('ignored-sync-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ignored_transactions' }, checkIgnored)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   return (
     <>

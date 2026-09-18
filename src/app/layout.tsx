@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   },
 }
 
+import { AuthProvider } from "@/components/auth-provider"
+
 export default function RootLayout(props: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
@@ -50,9 +52,11 @@ export default function RootLayout(props: LayoutProps<"/">) {
           defaultTheme="system"
           storageKey="expense-tracker-theme"
         >
-          <AppShell>
-            {props.children}
-          </AppShell>
+          <AuthProvider>
+            <AppShell>
+              {props.children}
+            </AppShell>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

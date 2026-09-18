@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getAllIgnoredTransactions } from '@/lib/db-helpers';
+import { IgnoredTransaction } from '@/lib/db';
 import { format } from 'date-fns';
-import { db } from '@/lib/db';
+
 import { formatCurrency } from '@/lib/constants';
 import {
   Dialog,
@@ -21,13 +24,31 @@ interface RestoreIgnoredDialogProps {
 }
 
 export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered }: RestoreIgnoredDialogProps) {
-  const ignored = useLiveQuery(() => db.ignoredTransactions.orderBy('deletedAt').reverse().toArray()) || [];
+  const [ignored, setIgnored] = useState<IgnoredTransaction[]>([]);
+
+  const fetchIgnored = useCallback(async () => {
+    try {
+      const data = await getAllIgnoredTransactions();
+      setIgnored(data);
+    } catch(e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchIgnored();
+    const channel = supabase
+      .channel('ignored-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ignored_transactions' }, fetchIgnored)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchIgnored]);
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const handleRestore = async (plaidId: string) => {
     setRestoringId(plaidId);
     try {
-      await db.ignoredTransactions.delete(plaidId);
+      await supabase.from('ignored_transactions').delete().eq('plaid_id', plaidId);
       onRestoreTriggered(); // Triggers a sync in the parent to fetch the data
     } finally {
       setRestoringId(null);

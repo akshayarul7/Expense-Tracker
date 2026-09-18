@@ -1,8 +1,8 @@
-import Dexie, { Table } from 'dexie';
+
 import { RecurringFrequency } from './constants';
 
 export interface Expense {
-  id?: number;
+  id?: string;
   name: string;
   amount: number;
   originalAmount?: number;
@@ -16,6 +16,7 @@ export interface Expense {
 }
 
 export interface Budget {
+  id?: string;
   category: string;
   monthlyLimit: number;
 }
@@ -27,11 +28,12 @@ export interface IgnoredTransaction {
   date?: Date;
   deletedAt: Date;
 }
+import Dexie, { Table } from 'dexie';
 
 export class ExpenseTrackerDB extends Dexie {
-  expenses!: Table<Expense, number>;
-  budgets!: Table<Budget, string>;
-  ignoredTransactions!: Table<IgnoredTransaction, string>;
+  expenses!: Table<any, number>;
+  budgets!: Table<any, string>;
+  ignoredTransactions!: Table<any, string>;
 
   constructor() {
     super('ExpenseTrackerDB');
@@ -52,4 +54,4 @@ export class ExpenseTrackerDB extends Dexie {
   }
 }
 
-export const db = new ExpenseTrackerDB();
+export const localDb = new ExpenseTrackerDB();

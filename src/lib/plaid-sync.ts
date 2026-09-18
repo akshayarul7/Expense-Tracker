@@ -1,4 +1,6 @@
-import { db, Expense } from '@/lib/db';
+import { Expense } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
+import { getExistingPlaidIds, getAllIgnoredTransactionIds, updateExpense, addExpense } from '@/lib/db-helpers';
 import { CATEGORIES } from '@/lib/constants';
 
 // Helper to loosely map Plaid categories to our app categories
@@ -23,12 +25,18 @@ export async function processPlaidTransactions(transactions: any[], accounts?: a
   let importedCount = 0;
   
   // Get existing plaid transactions to avoid duplicates
-  const allExpenses = await db.expenses.toArray();
-  const existingPlaidIds = new Set(allExpenses.filter(e => e.plaidId).map(e => e.plaidId));
+  const existingIds = await getExistingPlaidIds();
+  const existingPlaidIds = new Set(existingIds);
 
   // Get ignored transactions
-  const ignoredArray = await db.ignoredTransactions.toArray();
-  const ignoredPlaidIds = new Set(ignoredArray.map(i => i.plaidId));
+  const ignoredIds = await getAllIgnoredTransactionIds();
+  const ignoredPlaidIds = new Set(ignoredIds);
+
+  // Get all expenses to update old ones
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user.id;
+  const { data: allExpensesData } = await supabase.from('expenses').select('*').eq('user_id', userId).not('plaid_id', 'is', null);
+  const allExpenses = allExpensesData || [];
 
   const newExpenses: Omit<Expense, 'id'>[] = [];
 
@@ -61,12 +69,12 @@ export async function processPlaidTransactions(transactions: any[], accounts?: a
         }
         
         // Fix timezone date shift for previously imported transactions (Midnight UTC)
-        if (existingExpense.date.getUTCHours() === 0) {
+        if (new Date(existingExpense.date).getUTCHours() === 0) {
           updates.date = new Date(t.date + 'T12:00:00');
         }
         
         if (Object.keys(updates).length > 0) {
-          await db.expenses.update(existingExpense.id, updates);
+          await updateExpense(existingExpense.id, updates);
         }
       }
       continue;
@@ -96,7 +104,7 @@ export async function processPlaidTransactions(transactions: any[], accounts?: a
   }
 
   if (newExpenses.length > 0) {
-    await db.expenses.bulkAdd(newExpenses);
+    for (const exp of newExpenses) { await addExpense(exp); }
     importedCount = newExpenses.length;
   }
 
