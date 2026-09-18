@@ -5,7 +5,7 @@ import { useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getExpensesByCategory, getExpensesByDateRange } from '@/lib/db-helpers';
 import { format } from 'date-fns';
-import { MoreHorizontal, Repeat } from 'lucide-react';
+import { MoreHorizontal, Repeat, ArrowUpDown } from 'lucide-react';
 import {
   LegacyColumnDef,
   getCoreRowModel,
@@ -119,7 +119,16 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
   const columns: LegacyColumnDef<Expense>[] = [
     {
       accessorKey: 'date',
-      header: 'Date',
+      header: () => (
+        <Button 
+          variant="ghost" 
+          onClick={() => setSortBy(s => s === 'date-desc' ? 'date-asc' : 'date-desc')}
+          className="-ml-4 h-8"
+        >
+          <span>Date</span>
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => format(row.original.date, 'MMM d, yyyy'),
     },
     {
@@ -146,7 +155,18 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
     },
     {
       accessorKey: 'amount',
-      header: () => <div className="text-right">Amount</div>,
+      header: () => (
+        <div className="flex justify-end">
+          <Button 
+            variant="ghost" 
+            onClick={() => setSortBy(s => s === 'amount-desc' ? 'amount-asc' : 'amount-desc')}
+            className="-mr-4 h-8"
+          >
+            <span>Amount</span>
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      ),
       cell: ({ row }) => {
         return <div className="text-right font-medium">{formatCurrency(row.original.amount)}</div>;
       },
@@ -242,17 +262,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
           </SelectContent>
         </Select>
 
-        <Select value={sortBy} onValueChange={(val) => setSortBy(val)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Sort By" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date-desc">Newest First</SelectItem>
-            <SelectItem value="date-asc">Oldest First</SelectItem>
-            <SelectItem value="amount-desc">Highest Amount</SelectItem>
-            <SelectItem value="amount-asc">Lowest Amount</SelectItem>
-          </SelectContent>
-        </Select>
+
       </div>
 
       <div className="rounded-md border">
