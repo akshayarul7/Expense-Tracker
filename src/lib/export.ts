@@ -10,51 +10,28 @@ interface ExportData {
 }
 
 export async function exportData(): Promise<string> {
-  const expenses = await db.expenses.toArray();
-  const budgets = await db.budgets.toArray();
-  const ignoredTransactions = await db.ignoredTransactions.toArray();
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  
+  if (!userId) throw new Error("Not logged in");
 
-  const data: ExportData = {
-    version: 2,
+  const [eRes, bRes, iRes] = await Promise.all([
+    supabase.from('expenses').select('*').eq('user_id', userId),
+    supabase.from('budgets').select('*').eq('user_id', userId),
+    supabase.from('ignored_transactions').select('*').eq('user_id', userId)
+  ]);
+
+  const data = {
+    version: 3,
     exportDate: new Date().toISOString(),
-    expenses,
-    budgets,
-    ignoredTransactions,
+    expenses: eRes.data || [],
+    budgets: bRes.data || [],
+    ignoredTransactions: iRes.data || []
   };
 
-  return JSON.stringify(data);
+  return JSON.stringify(data, null, 2);
 }
 
 export async function importData(jsonString: string): Promise<{ expenses: number; budgets: number; ignored: number }> {
-  try {
-    const data = JSON.parse(jsonString) as ExportData;
-    
-    // Basic validation
-    if (!Array.isArray(data.expenses) || !Array.isArray(data.budgets)) {
-      throw new Error('Invalid export file format');
-    }
-
-    const ignored = data.ignoredTransactions || [];
-
-    await db.transaction('rw', db.expenses, db.budgets, db.ignoredTransactions, async () => {
-      await db.expenses.clear();
-      await db.budgets.clear();
-      await db.ignoredTransactions.clear();
-      
-      await db.expenses.bulkAdd(data.expenses);
-      await db.budgets.bulkAdd(data.budgets);
-      if (ignored.length > 0) {
-        await db.ignoredTransactions.bulkAdd(ignored);
-      }
-    });
-
-    return {
-      expenses: data.expenses.length,
-      budgets: data.budgets.length,
-      ignored: ignored.length,
-    };
-  } catch (error) {
-    console.error('Import failed:', error);
-    throw new Error('Failed to import data. Please check the file format.');
-  }
+  throw new Error("Importing backup data directly to Supabase via JSON upload is disabled. Please use the settings page migration tool.");
 }
