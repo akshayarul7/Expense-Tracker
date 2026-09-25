@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-muted/30 p-4 safe-pt safe-pb">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-muted/30 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle>{isSignUp ? 'Create Account' : 'Expense Tracker Login'}</CardTitle>

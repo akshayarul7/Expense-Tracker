@@ -88,12 +88,33 @@ export async function processPlaidTransactions(transactions: any[], accounts?: a
     // We only care about expenses
     if (t.amount <= 0) continue;
 
+    // Plaid assigns completely new IDs when a pending transaction posts, or when you reconnect.
+    // If the transaction has a pending_transaction_id that is already in our DB, we should just update it.
+    if (t.pending_transaction_id && existingPlaidIds.has(t.pending_transaction_id)) {
+      const existingExpense = allExpenses.find(e => e.plaidId === t.pending_transaction_id);
+      if (existingExpense && existingExpense.id) {
+        await updateExpense(existingExpense.id, { plaidId: t.transaction_id });
+      }
+      continue;
+    }
+
+    // Deduplicate across Plaid Items by checking date and amount
+    const expenseDateStr = t.authorized_date ? t.authorized_date : t.date;
+    const isDuplicate = allExpenses.some(e => {
+      const existingDateStr = new Date(e.date).toISOString().substring(0, 10);
+      return e.originalAmount === t.amount && existingDateStr === expenseDateStr;
+    });
+
+    if (isDuplicate) {
+      continue;
+    }
+    
     const expense: Omit<Expense, 'id'> = {
       name: t.merchant_name || t.name || 'Unknown Transaction',
       amount: t.amount,
       originalAmount: t.amount,
       category: mapPlaidCategory(t.category),
-      date: new Date(t.date + 'T12:00:00'),
+      date: new Date(expenseDateStr + 'T12:00:00'),
       notes: newNotes,
       isRecurring: false,
       createdAt: new Date(),

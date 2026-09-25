@@ -398,7 +398,7 @@ export default function ReportsPage() {
                     <Button 
                       variant="ghost" 
                       onClick={() => setDialogSort(s => ({ column: 'date', dir: s.column === 'date' && s.dir === 'desc' ? 'asc' : 'desc' }))}
-                      className="-ml-4 h-8 data-[state=open]:bg-accent"
+                      className="h-8 p-0 hover:bg-transparent data-[state=open]:bg-accent"
                     >
                       <span>Date</span>
                       <ArrowUpDown className="ml-2 h-4 w-4" />

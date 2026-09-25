@@ -64,6 +64,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
     pageSize: 10,
   });
 
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
 
   const fetchExpenses = useCallback(async () => {
@@ -72,11 +73,24 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
       const end = new Date('2100-01-01');
       let data = await getExpensesByDateRange(start, end);
 
+      const years = new Set<number>();
+      data.forEach(e => {
+        const y = new Date(e.date).getFullYear();
+        if (y <= new Date().getFullYear()) years.add(y);
+      });
+      years.add(new Date().getFullYear()); // Always include current year
+      if (yearFilter !== 'All Years') {
+        years.add(parseInt(yearFilter));
+      }
+      setAvailableYears(Array.from(years).sort((a, b) => b - a));
+
       if (categoryFilter !== 'All Categories') {
         data = data.filter(e => e.category === categoryFilter);
       }
       if (monthFilter !== 'All Months') {
-        data = data.filter(e => new Date(e.date).getMonth().toString() === monthFilter);
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthIndex = monthNames.indexOf(monthFilter);
+        data = data.filter(e => new Date(e.date).getMonth() === monthIndex);
       }
       if (yearFilter !== 'All Years') {
         data = data.filter(e => new Date(e.date).getFullYear().toString() === yearFilter);
@@ -123,7 +137,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
         <Button 
           variant="ghost" 
           onClick={() => setSortBy(s => s === 'date-desc' ? 'date-asc' : 'date-desc')}
-          className="-ml-4 h-8"
+          className="h-8 p-0 hover:bg-transparent"
         >
           <span>Date</span>
           <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -216,10 +230,14 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
     },
   });
 
+  const currentRealDate = new Date();
+  const currentRealMonth = currentRealDate.getMonth();
+  const currentRealYear = currentRealDate.getFullYear();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val || 'All Categories')}>
+        <Select value={categoryFilter} onValueChange={(val) => { setCategoryFilter(val || 'All Categories'); setPagination(p => ({ ...p, pageIndex: 0 })); }}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
@@ -233,7 +251,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
           </SelectContent>
         </Select>
 
-        <Select value={monthFilter} onValueChange={(val) => setMonthFilter(val || 'All Months')}>
+        <Select value={monthFilter} onValueChange={(val) => { setMonthFilter(val || 'All Months'); setPagination(p => ({ ...p, pageIndex: 0 })); }}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Month" />
           </SelectTrigger>
@@ -242,23 +260,27 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
             {[
               'January', 'February', 'March', 'April', 'May', 'June',
               'July', 'August', 'September', 'October', 'November', 'December'
-            ].map((m, i) => (
-              <SelectItem key={m} value={i.toString()}>{m}</SelectItem>
+            ].map((m, index) => (
+              <SelectItem 
+                key={m} 
+                value={m}
+                disabled={yearFilter === currentRealYear.toString() && index > currentRealMonth}
+              >
+                {m}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={yearFilter} onValueChange={(val) => setYearFilter(val || 'All Years')}>
+        <Select value={yearFilter} onValueChange={(val) => { setYearFilter(val || 'All Years'); setPagination(p => ({ ...p, pageIndex: 0 })); }}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="All Years">All Years</SelectItem>
-            {/* Generate last 10 years up to current year */}
-            {Array.from({ length: 10 }).map((_, i) => {
-              const y = new Date().getFullYear() - i;
-              return <SelectItem key={y} value={y.toString()}>{y}</SelectItem>;
-            })}
+            {availableYears.map(y => (
+              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 

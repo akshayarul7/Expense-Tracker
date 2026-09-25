@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { ExpenseForm } from '@/components/expenses/expense-form';
 import { ExpenseTable } from '@/components/expenses/expense-table';
 import { PlaidSyncButton } from '@/components/expenses/plaid-sync-button';
+import { PasteExpensesDialog } from '@/components/expenses/paste-expenses-dialog';
+import { FileText } from 'lucide-react';
 
 export default function ExpensesPage() {
   const [formOpen, setFormOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -38,6 +41,10 @@ export default function ExpensesPage() {
         <h2 className="text-3xl font-bold tracking-tight">Expenses</h2>
         <div className="flex flex-wrap items-center gap-2">
           <PlaidSyncButton refreshKey={refreshKey} onSyncComplete={triggerRefresh} />
+          <Button variant="outline" onClick={() => setPasteOpen(true)}>
+            <FileText className="mr-2 h-4 w-4" />
+            Paste Text
+          </Button>
           <Button onClick={handleAddExpenseClick}>
             <Plus className="mr-2 h-4 w-4" />
             Add Expense
@@ -52,6 +59,12 @@ export default function ExpensesPage() {
         onOpenChange={handleOpenChange}
         expense={editingExpense}
         onSave={triggerRefresh}
+      />
+      
+      <PasteExpensesDialog 
+        open={pasteOpen}
+        onOpenChange={setPasteOpen}
+        onSuccess={triggerRefresh}
       />
     </div>
   );

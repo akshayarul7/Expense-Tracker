@@ -12,6 +12,7 @@ import { getAllIgnoredTransactions } from '@/lib/db-helpers';
 import { RestoreIgnoredDialog } from './restore-ignored-dialog';
 import { RefreshCw, Building2 } from 'lucide-react';
 import { getPlaidToken, savePlaidToken, clearPlaidToken } from '@/lib/db-helpers';
+import { toast } from '@/components/ui/toast';
 
 export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: number, onSyncComplete?: () => void }) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -54,12 +55,12 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
         // Process the initial batch of transactions
         if (data.transactions) {
           const count = await processPlaidTransactions(data.transactions, data.accounts);
-          alert(`Successfully connected bank and imported ${count} new expenses!`);
+          toast.add({ title: `Successfully connected bank and imported ${count} new expenses!`, type: 'success' });
         }
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to connect bank.');
+      toast.add({ title: 'Failed to connect bank.', type: 'error' });
     } finally {
       setIsSyncing(false);
       onSyncComplete?.();
@@ -93,15 +94,17 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
       
       if (data.transactions) {
         const count = await processPlaidTransactions(data.transactions, data.accounts);
-        alert(`Synced! Imported ${count} new expenses.`);
+        if (count > 0) {
+          toast.add({ title: `Synced! Imported ${count} new expense${count === 1 ? '' : 's'}.`, type: 'success' });
+        }
       } else {
-        alert('Failed to fetch transactions. You may need to reconnect your bank.');
+        toast.add({ title: 'Failed to fetch transactions. You may need to reconnect your bank.', type: 'error' });
         await clearPlaidToken();
         setHasToken(false);
       }
     } catch (err) {
       console.error(err);
-      alert('Sync failed.');
+      toast.add({ title: 'Sync failed.', type: 'error' });
     } finally {
       setIsSyncing(false);
       onSyncComplete?.();
@@ -119,6 +122,13 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
     }
     checkIgnored();
   }, [refreshKey]);
+
+  // Auto-sync on mount when connected
+  useReactEffect(() => {
+    if (hasToken) {
+      handleSync();
+    }
+  }, [hasToken]);
 
   return (
     <>
@@ -142,21 +152,17 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
             Review {ignoredCount} Deleted
           </Button>
         )}
-      <Button 
-        variant="secondary" 
-        onClick={handleSync} 
-        disabled={isSyncing || (!hasToken && !ready)}
-        className="gap-2"
-      >
-        {isSyncing ? (
-          <RefreshCw className="h-4 w-4 animate-spin" />
-        ) : hasToken ? (
-          <RefreshCw className="h-4 w-4" />
-        ) : (
+      {!hasToken && (
+        <Button 
+          variant="secondary" 
+          onClick={() => open()} 
+          disabled={!ready}
+          className="gap-2"
+        >
           <Building2 className="h-4 w-4" />
-        )}
-        {isSyncing ? 'Syncing...' : hasToken ? 'Sync Bank' : 'Connect Bank'}
-      </Button>
+          Connect Bank
+        </Button>
+      )}
     </div>
     </>
   );

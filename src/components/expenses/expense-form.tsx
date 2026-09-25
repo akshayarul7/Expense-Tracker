@@ -120,7 +120,7 @@ export function ExpenseForm({ open, onOpenChange, expense, onSave }: ExpenseForm
             </DialogDescription>
           </DialogHeader>
           <Form {...(form as any)}>
-            <form onSubmit={form.handleSubmit(onSubmit as any, (errors) => { console.error('Form validation errors:', errors); })} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
               <FormField
                 control={form.control as any}
                 name="name"
