@@ -29,8 +29,8 @@ export default function DashboardPage() {
       
       const bData = await getAllBudgets();
       setBudgets(bData);
-    } catch(e) {
-      console.error(e);
+    } catch(e: any) {
+      if (e?.message) console.error(e);
     }
   }, []);
 
@@ -95,7 +95,7 @@ export default function DashboardPage() {
   const chartConfig = {
     total: {
       label: "Total",
-      color: "hsl(var(--chart-1))",
+      color: "var(--color-chart-1)",
     },
   } satisfies ChartConfig;
 

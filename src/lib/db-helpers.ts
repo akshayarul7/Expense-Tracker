@@ -11,6 +11,18 @@ async function getUserId() {
 
 export async function addExpense(data: Omit<Expense, 'id' | 'createdAt'>): Promise<string> {
   const userId = await getUserId();
+
+  // Guard against duplicate Plaid transactions (race condition safety net)
+  if (data.plaidId) {
+    const { data: existing } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('plaid_id', data.plaidId)
+      .maybeSingle();
+    if (existing) return existing.id;
+  }
+
   const payload = {
     user_id: userId,
     name: data.name,
