@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { backupToDrive, restoreFromDrive, getBackupMetadata } from '@/lib/drive-sync';
 import { supabase } from '@/lib/supabase';
+import { getAllIgnoredTransactions } from '@/lib/db-helpers';
+import { RestoreIgnoredDialog } from '@/components/expenses/restore-ignored-dialog';
 
 import { format } from 'date-fns';
-import { HardDrive, UploadCloud, DownloadCloud, AlertCircle } from 'lucide-react';
+import { HardDrive, UploadCloud, DownloadCloud, AlertCircle, Trash2 } from 'lucide-react';
 import Script from 'next/script';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -19,11 +21,25 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Trash state
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
+
   const hasClientId = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
     const saved = localStorage.getItem('last_drive_backup');
     if (saved) setLastBackup(saved);
+  }, []);
+
+  useEffect(() => {
+    async function fetchTrashCount() {
+      try {
+        const data = await getAllIgnoredTransactions();
+        setTrashCount(data.length);
+      } catch (e) {}
+    }
+    fetchTrashCount();
   }, []);
 
     const handleBackup = async () => {
@@ -102,7 +118,35 @@ export default function SettingsPage() {
         </Alert>
       )}
 
-            
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            Trash
+          </CardTitle>
+          <CardDescription>
+            Deleted bank transactions are kept here. Restore them to bring them back on your next sync.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="border-t px-6 py-4 bg-muted/50">
+          <Button 
+            variant="outline" 
+            onClick={() => setTrashOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            View Trash{trashCount > 0 ? ` (${trashCount})` : ''}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <RestoreIgnoredDialog 
+        open={trashOpen} 
+        onOpenChange={setTrashOpen}
+        onRestoreTriggered={async () => {
+          const data = await getAllIgnoredTransactions();
+          setTrashCount(data.length);
+        }}
+      />
 
       <Card>
         <CardHeader>
@@ -166,3 +210,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

@@ -4,13 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { processPlaidTransactions } from '@/lib/plaid-sync';
-import { restoreIgnoredTransactions } from '@/lib/db-helpers';
 
-import { useEffect as useReactEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getAllIgnoredTransactions } from '@/lib/db-helpers';
-import { RestoreIgnoredDialog } from './restore-ignored-dialog';
-import { RefreshCw, Building2 } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { getPlaidToken, savePlaidToken, clearPlaidToken } from '@/lib/db-helpers';
 import { toast } from '@/components/ui/toast';
 
@@ -111,47 +107,15 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
     }
   };
 
-  const [restoreOpen, setRestoreOpen] = useState(false);
-  const [ignoredCount, setIgnoredCount] = useState(0);
-  useReactEffect(() => {
-    async function checkIgnored() {
-      try {
-        const data = await getAllIgnoredTransactions();
-        setIgnoredCount(data.length);
-      } catch (e) {}
-    }
-    checkIgnored();
-  }, [refreshKey]);
-
   // Auto-sync on mount when connected
-  useReactEffect(() => {
+  useEffect(() => {
     if (hasToken) {
       handleSync();
     }
   }, [hasToken]);
 
   return (
-    <>
-      <RestoreIgnoredDialog 
-        open={restoreOpen} 
-        onOpenChange={setRestoreOpen}
-        onRestoreTriggered={async () => {
-          const data = await getAllIgnoredTransactions();
-          setIgnoredCount(data.length);
-          handleSync();
-        }}
-        refreshKey={refreshKey}
-      />
-      <div className="flex items-center gap-2">
-        {ignoredCount > 0 && (
-          <Button 
-            variant="outline" 
-            onClick={() => setRestoreOpen(true)}
-            disabled={isSyncing}
-          >
-            Review {ignoredCount} Deleted
-          </Button>
-        )}
+    <div className="flex items-center gap-2">
       {!hasToken && (
         <Button 
           variant="secondary" 
@@ -164,6 +128,6 @@ export function PlaidSyncButton({ refreshKey, onSyncComplete }: { refreshKey?: n
         </Button>
       )}
     </div>
-    </>
   );
 }
+
