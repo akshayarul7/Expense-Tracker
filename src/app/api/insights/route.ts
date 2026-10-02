@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     const projectedTotal = (currentTotal / dayOfMonth) * daysInMonth;
 
     const prompt = `You are a personal finance assistant. Analyze this user's spending data and provide 3-4 concise, actionable bullet-point insights. Be specific with numbers. Don't be preachy — be direct and helpful.
+If there is very little data (e.g. only 1 or 2 transactions), just provide 1 or 2 encouraging bullet points about starting to track expenses, rather than trying to force trend analysis.
 
 Current month: ${format(now, 'MMMM yyyy')} (day ${dayOfMonth} of ${daysInMonth})
 Total spent so far: $${currentTotal.toFixed(2)}
@@ -94,7 +95,7 @@ ${topExpenses.join('\n')}
 Respond with ONLY the bullet points (use • as the bullet character), no intro or outro text. Keep each bullet to 1-2 sentences max.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +103,6 @@ Respond with ONLY the bullet points (use • as the bullet character), no intro 
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 300,
           },
         }),
       }

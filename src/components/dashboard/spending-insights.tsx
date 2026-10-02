@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw } from 'lucide-react';
@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 export function SpendingInsights() {
   const [insights, setInsights] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
 
   const fetchInsights = async () => {
@@ -38,10 +38,6 @@ export function SpendingInsights() {
     }
   };
 
-  useEffect(() => {
-    fetchInsights();
-  }, []);
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -49,15 +45,17 @@ export function SpendingInsights() {
           <Sparkles className="h-4 w-4 text-amber-500" />
           AI Insights
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={fetchInsights}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
+        {insights && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={fetchInsights}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -70,9 +68,19 @@ export function SpendingInsights() {
           <p className="text-sm text-muted-foreground">
             Insights unavailable. <button onClick={fetchInsights} className="underline">Try again</button>
           </p>
-        ) : (
+        ) : insights ? (
           <div className="text-sm leading-relaxed whitespace-pre-line">
             {insights}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-4 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Get an AI-powered summary of your spending patterns this month.
+            </p>
+            <Button onClick={fetchInsights} variant="secondary" size="sm">
+              <Sparkles className="mr-2 h-4 w-4 text-amber-500" />
+              Generate Insights
+            </Button>
           </div>
         )}
       </CardContent>
