@@ -4,10 +4,10 @@ import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
 export async function POST(req: Request) {
   try {
-    const { accessToken } = await req.json();
+    const { accessToken, thisMonthStart, thisMonthEnd, lastMonthStart, lastMonthEnd } = await req.json();
     
-    if (!accessToken) {
-      return NextResponse.json({ error: 'Missing access token' }, { status: 401 });
+    if (!accessToken || !thisMonthStart || !thisMonthEnd) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -27,19 +27,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const now = new Date();
-    const thisMonthStart = startOfMonth(now);
-    const thisMonthEnd = endOfMonth(now);
-    const lastMonthStart = startOfMonth(subMonths(now, 1));
-    const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
     // Fetch this month's expenses
     const { data: thisMonthExpenses } = await supabase
       .from('expenses')
       .select('name, amount, category, date')
       .eq('user_id', user.id)
-      .gte('date', thisMonthStart.toISOString())
-      .lte('date', thisMonthEnd.toISOString())
+      .gte('date', thisMonthStart)
+      .lte('date', thisMonthEnd)
       .order('amount', { ascending: false });
 
     // Fetch last month's expenses
@@ -47,8 +41,8 @@ export async function POST(req: Request) {
       .from('expenses')
       .select('name, amount, category, date')
       .eq('user_id', user.id)
-      .gte('date', lastMonthStart.toISOString())
-      .lte('date', lastMonthEnd.toISOString());
+      .gte('date', lastMonthStart)
+      .lte('date', lastMonthEnd);
 
     const current = thisMonthExpenses || [];
     const previous = lastMonthExpenses || [];
@@ -71,8 +65,9 @@ export async function POST(req: Request) {
 
     const topExpenses = current.slice(0, 5).map(e => `${e.name}: $${e.amount.toFixed(2)}`);
 
+    const now = new Date();
     const dayOfMonth = now.getDate();
-    const daysInMonth = thisMonthEnd.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const projectedTotal = (currentTotal / dayOfMonth) * daysInMonth;
 
     const prompt = `You are a personal finance assistant. Analyze this user's spending data and provide 3-4 concise, actionable bullet-point insights. Be specific with numbers. Don't be preachy — be direct and helpful.

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+
 export function SpendingInsights() {
   const [insights, setInsights] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +23,18 @@ export function SpendingInsights() {
         return;
       }
 
+      const now = new Date();
+      const bounds = {
+        thisMonthStart: startOfMonth(now).toISOString(),
+        thisMonthEnd: endOfMonth(now).toISOString(),
+        lastMonthStart: startOfMonth(subMonths(now, 1)).toISOString(),
+        lastMonthEnd: endOfMonth(subMonths(now, 1)).toISOString(),
+      };
+
       const res = await fetch('/api/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken: session.access_token }),
+        body: JSON.stringify({ accessToken: session.access_token, ...bounds }),
       });
 
       if (!res.ok) throw new Error('Failed');
