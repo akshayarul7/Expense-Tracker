@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { format } from 'date-fns';
+
+export const maxDuration = 60;
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
