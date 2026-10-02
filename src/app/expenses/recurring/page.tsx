@@ -14,10 +14,20 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Expense } from '@/lib/db';
 import { deleteExpense } from '@/lib/db-helpers';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 export default function RecurringExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>(undefined);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [actualRecurring, setActualRecurring] = useState<Expense[]>([]);
 
@@ -44,8 +54,15 @@ export default function RecurringExpensesPage() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id?: string) => {
-    if (id) await deleteExpense(id);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget?.id) return;
+    setIsDeleting(true);
+    try {
+      await deleteExpense(deleteTarget.id);
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   return (
@@ -82,7 +99,7 @@ export default function RecurringExpensesPage() {
                   <Button variant="outline" className="flex-1" onClick={() => handleEdit(expense)}>
                     Edit
                   </Button>
-                  <Button variant="destructive" className="flex-1" onClick={() => handleDelete(expense.id)}>
+                  <Button variant="destructive" className="flex-1" onClick={() => setDeleteTarget(expense)}>
                     Delete
                   </Button>
                 </div>
@@ -91,7 +108,7 @@ export default function RecurringExpensesPage() {
           ))
         ) : (
           <div className="col-span-full py-12 text-center text-muted-foreground border rounded-lg border-dashed">
-            No recurring expenses found. Check the "Recurring" box when adding an expense!
+            No recurring expenses found. Check the &quot;Recurring&quot; box when adding an expense!
           </div>
         )}
       </div>
@@ -101,6 +118,26 @@ export default function RecurringExpensesPage() {
         onOpenChange={setIsFormOpen} 
         expense={editingExpense} 
       />
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Recurring Expense</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-medium text-foreground">{deleteTarget?.name || deleteTarget?.category}</span> ({formatCurrency(deleteTarget?.amount ?? 0)}/{deleteTarget?.recurringFrequency})?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

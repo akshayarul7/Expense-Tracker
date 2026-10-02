@@ -13,6 +13,7 @@ import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from '@/components/ui/progress';
+import { SpendingInsights } from '@/components/dashboard/spending-insights';
 
 export default function DashboardPage() {
   const currentMonthDate = new Date();
@@ -147,6 +148,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <SpendingInsights />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">

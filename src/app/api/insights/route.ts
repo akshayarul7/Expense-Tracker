@@ -1,0 +1,124 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export async function POST(req: Request) {
+  try {
+    const { accessToken } = await req.json();
+    
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Missing access token' }, { status: 401 });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
+    }
+
+    // Get user from token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    const now = new Date();
+    const thisMonthStart = startOfMonth(now);
+    const thisMonthEnd = endOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+    // Fetch this month's expenses
+    const { data: thisMonthExpenses } = await supabase
+      .from('expenses')
+      .select('name, amount, category, date')
+      .eq('user_id', user.id)
+      .gte('date', thisMonthStart.toISOString())
+      .lte('date', thisMonthEnd.toISOString())
+      .order('amount', { ascending: false });
+
+    // Fetch last month's expenses
+    const { data: lastMonthExpenses } = await supabase
+      .from('expenses')
+      .select('name, amount, category, date')
+      .eq('user_id', user.id)
+      .gte('date', lastMonthStart.toISOString())
+      .lte('date', lastMonthEnd.toISOString());
+
+    const current = thisMonthExpenses || [];
+    const previous = lastMonthExpenses || [];
+
+    if (current.length === 0) {
+      return NextResponse.json({ 
+        insights: "No expenses recorded this month yet. Start tracking to get insights!" 
+      });
+    }
+
+    // Compute summaries to send to the LLM (not raw data)
+    const currentTotal = current.reduce((s, e) => s + e.amount, 0);
+    const previousTotal = previous.reduce((s, e) => s + e.amount, 0);
+
+    const currentByCategory: Record<string, number> = {};
+    current.forEach(e => { currentByCategory[e.category] = (currentByCategory[e.category] || 0) + e.amount; });
+
+    const previousByCategory: Record<string, number> = {};
+    previous.forEach(e => { previousByCategory[e.category] = (previousByCategory[e.category] || 0) + e.amount; });
+
+    const topExpenses = current.slice(0, 5).map(e => `${e.name}: $${e.amount.toFixed(2)}`);
+
+    const dayOfMonth = now.getDate();
+    const daysInMonth = thisMonthEnd.getDate();
+    const projectedTotal = (currentTotal / dayOfMonth) * daysInMonth;
+
+    const prompt = `You are a personal finance assistant. Analyze this user's spending data and provide 3-4 concise, actionable bullet-point insights. Be specific with numbers. Don't be preachy — be direct and helpful.
+
+Current month: ${format(now, 'MMMM yyyy')} (day ${dayOfMonth} of ${daysInMonth})
+Total spent so far: $${currentTotal.toFixed(2)}
+Projected month total: $${projectedTotal.toFixed(2)}
+Last month total: $${previousTotal.toFixed(2)}
+
+This month by category:
+${Object.entries(currentByCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => `  ${cat}: $${amt.toFixed(2)}`).join('\n')}
+
+Last month by category:
+${Object.entries(previousByCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => `  ${cat}: $${amt.toFixed(2)}`).join('\n')}
+
+Top 5 expenses this month:
+${topExpenses.join('\n')}
+
+Respond with ONLY the bullet points (use • as the bullet character), no intro or outro text. Keep each bullet to 1-2 sentences max.`;
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 300,
+          },
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error('Gemini API error:', errText);
+      return NextResponse.json({ error: 'Failed to generate insights' }, { status: 500 });
+    }
+
+    const geminiData = await geminiRes.json();
+    const insights = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'Unable to generate insights.';
+
+    return NextResponse.json({ insights });
+  } catch (error: any) {
+    console.error('Insights error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

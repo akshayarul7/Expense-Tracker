@@ -5,7 +5,7 @@ import { useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getExpensesByCategory, getExpensesByDateRange } from '@/lib/db-helpers';
 import { format } from 'date-fns';
-import { MoreHorizontal, Repeat, ArrowUpDown } from 'lucide-react';
+import { MoreHorizontal, Repeat, ArrowUpDown, Search } from 'lucide-react';
 import {
   LegacyColumnDef,
   getCoreRowModel,
@@ -29,6 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -58,6 +59,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
   const [monthFilter, setMonthFilter] = useState<string>('All Months');
   const [yearFilter, setYearFilter] = useState<string>('All Years');
   const [sortBy, setSortBy] = useState<string>('date-desc');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -95,6 +97,10 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
       if (yearFilter !== 'All Years') {
         data = data.filter(e => new Date(e.date).getFullYear().toString() === yearFilter);
       }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        data = data.filter(e => (e.name || '').toLowerCase().includes(q));
+      }
       
       data.sort((a, b) => {
         if (sortBy === 'date-desc') {
@@ -113,7 +119,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
     } catch(e) {
       console.error(e);
     }
-  }, [categoryFilter, monthFilter, yearFilter, sortBy]);
+  }, [categoryFilter, monthFilter, yearFilter, sortBy, searchQuery]);
 
   useEffect(() => {
     fetchExpenses();
@@ -237,6 +243,15 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search expenses..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPagination(p => ({ ...p, pageIndex: 0 })); }}
+            className="pl-9 w-[200px]"
+          />
+        </div>
         <Select value={categoryFilter} onValueChange={(val) => { setCategoryFilter(val || 'All Categories'); setPagination(p => ({ ...p, pageIndex: 0 })); }}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Category" />
