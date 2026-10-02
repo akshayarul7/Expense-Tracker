@@ -1,17 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, formatDistanceToNow } from 'date-fns';
 
 export function SpendingInsights() {
   const [insights, setInsights] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const cached = localStorage.getItem('expense_tracker_insights');
+    const cachedDate = localStorage.getItem('expense_tracker_insights_date');
+    if (cached && cachedDate) {
+      setInsights(cached);
+      setLastUpdated(new Date(cachedDate));
+    }
+  }, []);
 
   const fetchInsights = async () => {
     setIsLoading(true);
@@ -40,7 +50,11 @@ export function SpendingInsights() {
       if (!res.ok) throw new Error('Failed');
 
       const data = await res.json();
+      
       setInsights(data.insights);
+      setLastUpdated(now);
+      localStorage.setItem('expense_tracker_insights', data.insights);
+      localStorage.setItem('expense_tracker_insights_date', now.toISOString());
     } catch {
       setError(true);
     } finally {
@@ -51,15 +65,22 @@ export function SpendingInsights() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4 text-amber-500" />
-          AI Insights
-        </CardTitle>
+        <div className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            AI Insights
+          </CardTitle>
+          {lastUpdated && (
+            <p className="text-xs text-muted-foreground">
+              Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+            </p>
+          )}
+        </div>
         {insights && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 shrink-0"
             onClick={fetchInsights}
             disabled={isLoading}
           >
@@ -69,17 +90,17 @@ export function SpendingInsights() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-2 pt-2">
             <div className="h-4 bg-muted animate-pulse rounded w-full" />
             <div className="h-4 bg-muted animate-pulse rounded w-5/6" />
             <div className="h-4 bg-muted animate-pulse rounded w-4/6" />
           </div>
         ) : error ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground pt-2">
             Insights unavailable. <button onClick={fetchInsights} className="underline">Try again</button>
           </p>
         ) : insights ? (
-          <div className="text-sm leading-relaxed whitespace-pre-line">
+          <div className="text-sm leading-relaxed whitespace-pre-line pt-2">
             {insights}
           </div>
         ) : (
