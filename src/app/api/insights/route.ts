@@ -90,7 +90,7 @@ ${topExpenses.join('\n')}
 Respond with ONLY the bullet points (use • as the bullet character), no intro or outro text. Keep each bullet to 1-2 sentences max.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
