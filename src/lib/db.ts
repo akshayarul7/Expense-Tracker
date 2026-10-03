@@ -28,3 +28,13 @@ export interface IgnoredTransaction {
   date?: Date;
   deletedAt: Date;
 }
+
+export interface WishlistItem {
+  id?: string;
+  name: string;
+  price: number;
+  url?: string;
+  imageUrl?: string;
+  status: 'want' | 'bought';
+  createdAt?: Date;
+}

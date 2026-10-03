@@ -1,5 +1,5 @@
 
-import { Expense, Budget, IgnoredTransaction } from './db';
+import { Expense, Budget, IgnoredTransaction, WishlistItem } from './db';
 import { supabase } from './supabase';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
@@ -268,4 +268,82 @@ export async function savePlaidToken(token: string): Promise<void> {
 export async function clearPlaidToken(): Promise<void> {
   const userId = await getUserId();
   await supabase.from('plaid_connections').delete().eq('user_id', userId);
+}
+
+// ==========================================
+// Wishlist Helpers
+// ==========================================
+
+function mapWishlistItem(w: any): WishlistItem {
+  return {
+    id: w.id,
+    name: w.name,
+    price: Number(w.price),
+    url: w.url,
+    imageUrl: w.image_url,
+    status: w.status,
+    createdAt: new Date(w.created_at)
+  };
+}
+
+export async function getWishlistItems(): Promise<WishlistItem[]> {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from('wishlist')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(mapWishlistItem);
+}
+
+export async function addWishlistItem(item: Omit<WishlistItem, 'id' | 'createdAt'>): Promise<string> {
+  const userId = await getUserId();
+  
+  const { data, error } = await supabase
+    .from('wishlist')
+    .insert({
+      user_id: userId,
+      name: item.name,
+      price: item.price,
+      url: item.url,
+      image_url: item.imageUrl,
+      status: item.status
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function updateWishlistItem(id: string, item: Partial<Omit<WishlistItem, 'id' | 'createdAt'>>): Promise<void> {
+  const userId = await getUserId();
+  const payload: any = {};
+  
+  if (item.name !== undefined) payload.name = item.name;
+  if (item.price !== undefined) payload.price = item.price;
+  if (item.url !== undefined) payload.url = item.url;
+  if (item.imageUrl !== undefined) payload.image_url = item.imageUrl;
+  if (item.status !== undefined) payload.status = item.status;
+
+  const { error } = await supabase
+    .from('wishlist')
+    .update(payload)
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}
+
+export async function deleteWishlistItem(id: string): Promise<void> {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from('wishlist')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (error) throw error;
 }
