@@ -109,7 +109,7 @@ export function ChatWidget() {
                   {msg.role === 'user' ? (
                     msg.content
                   ) : (
-                    <ReactMarkdown className="text-sm">
+                    <ReactMarkdown>
                       {msg.content}
                     </ReactMarkdown>
                   )}
