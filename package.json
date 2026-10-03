@@ -23,6 +23,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.88.0",
+    "react-markdown": "^10.1.0",
     "react-plaid-link": "^5.0.0",
     "recharts": "^3.8.0",
     "shadcn": "^4.21.0",
