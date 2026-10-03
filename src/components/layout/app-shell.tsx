@@ -4,6 +4,7 @@
 import * as React from "react"
 import { Header } from "./header"
 import { Sidebar } from "./sidebar"
+import { ChatWidget } from "@/components/chat/chat-widget"
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -28,8 +29,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1 flex-col overflow-hidden safe-top">
         <Header onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 safe-bottom md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 safe-bottom md:p-6 relative">
           {children}
+          <ChatWidget />
         </main>
       </div>
     </div>
