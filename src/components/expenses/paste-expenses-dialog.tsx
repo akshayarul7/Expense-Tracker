@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { addExpense } from '@/lib/db-helpers';
-import { guessCategoryFromMerchantName, cleanMerchantName } from '@/lib/categorizer';
+import { guessCategoryFromMerchantName } from '@/lib/categorizer';
 
 interface PasteExpensesDialogProps {
   open: boolean;
@@ -43,7 +43,7 @@ export function PasteExpensesDialog({ open, onOpenChange, onSuccess }: PasteExpe
           descParts.pop(); // Pop random code
         }
         
-        const name = cleanMerchantName(descParts.join(' '));
+        const name = descParts.join(' ');
         const [month, day] = dateStr.split('/');
         
         // Use current year

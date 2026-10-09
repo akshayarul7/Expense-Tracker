@@ -55,27 +55,3 @@ export function guessCategoryFromMerchantName(name: string): string {
   return 'Other';
 }
 
-export function cleanMerchantName(rawName: string): string {
-  let name = rawName;
-  
-  // Truncate at common location / store number separators
-  const storeMarkerRegex = /(#\d+|\bT-\d+|\bStore\s*\d+|\*|\bMktp\b|\.com\b|\bwindcave\b)/i;
-  const match = name.match(storeMarkerRegex);
-  if (match && match.index !== undefined) {
-    name = name.substring(0, match.index);
-  }
-
-  // Remove common state codes if they appear at the end
-  const stateCodes = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
-  const stateRegex = new RegExp(`\\b(${stateCodes.join('|')})\\s*$`, 'i');
-  name = name.replace(stateRegex, '');
-
-  name = name.trim().replace(/\s+/g, ' ');
-
-  // Uppercase only first letter and lowercase everything else
-  if (name.length > 0) {
-    name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-  }
-
-  return name;
-}
