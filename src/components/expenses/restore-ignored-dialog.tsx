@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getAllIgnoredTransactions, restoreIgnoredTransactions } from '@/lib/db-helpers';
+import { getAllIgnoredTransactions, restoreIgnoredTransactions, unignoreTransaction } from '@/lib/db-helpers';
 import { IgnoredTransaction } from '@/lib/db';
 import { format } from 'date-fns';
 
@@ -47,7 +47,7 @@ export function RestoreIgnoredDialog({ open, onOpenChange, onRestoreTriggered, r
   const handleRestore = async (plaidId: string) => {
     setRestoringId(plaidId);
     try {
-      await supabase.from('ignored_transactions').delete().eq('plaid_id', plaidId);
+      await unignoreTransaction(plaidId);
       setIgnored((prev) => prev.filter((item) => item.plaidId !== plaidId));
       onRestoreTriggered();
     } finally {

@@ -102,7 +102,54 @@ export async function deleteExpense(id: string): Promise<void> {
 
 export async function restoreIgnoredTransactions(): Promise<void> {
   const userId = await getUserId();
+  
+  const { data: ignoredList } = await supabase
+    .from('ignored_transactions')
+    .select('*')
+    .eq('user_id', userId);
+    
+  if (ignoredList && ignoredList.length > 0) {
+    for (const ignored of ignoredList) {
+      await addExpense({
+        name: ignored.name,
+        amount: ignored.amount,
+        originalAmount: ignored.amount,
+        category: 'Other', // Categorizer could be used here but keeping simple
+        date: ignored.date,
+        notes: 'Restored from trash',
+        isRecurring: false,
+        plaidId: ignored.plaid_id
+      });
+    }
+  }
+  
   await supabase.from('ignored_transactions').delete().eq('user_id', userId);
+}
+
+export async function unignoreTransaction(plaidId: string): Promise<void> {
+  const userId = await getUserId();
+  
+  const { data: ignored } = await supabase
+    .from('ignored_transactions')
+    .select('*')
+    .eq('plaid_id', plaidId)
+    .eq('user_id', userId)
+    .single();
+    
+  if (ignored) {
+    await addExpense({
+      name: ignored.name,
+      amount: ignored.amount,
+      originalAmount: ignored.amount,
+      category: 'Other',
+      date: ignored.date,
+      notes: 'Restored from trash',
+      isRecurring: false,
+      plaidId: ignored.plaid_id
+    });
+  }
+  
+  await supabase.from('ignored_transactions').delete().eq('plaid_id', plaidId).eq('user_id', userId);
 }
 
 // Convert snake_case from DB to camelCase for frontend
