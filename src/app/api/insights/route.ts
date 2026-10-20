@@ -92,22 +92,37 @@ ${topExpenses.join('\n')}
 
 Respond with ONLY the bullet points (use • as the bullet character), no intro or outro text. Keep each bullet to 1-2 sentences max.`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-          },
-        }),
-      }
-    );
+    let geminiRes: Response | null = null;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
+    while (attempts < maxAttempts) {
+      attempts++;
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+            },
+          }),
+        }
+      );
+
+      if (geminiRes.ok) break;
+
+      if ((geminiRes.status === 503 || geminiRes.status === 429) && attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1500 * attempts));
+        continue;
+      }
+      break;
+    }
+
+    if (!geminiRes || !geminiRes.ok) {
+      const errText = geminiRes ? await geminiRes.text() : 'No response';
       console.error('Gemini API error:', errText);
       return NextResponse.json({ error: 'Failed to generate insights' }, { status: 500 });
     }

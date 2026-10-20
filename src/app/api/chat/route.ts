@@ -67,17 +67,33 @@ Answer the user's query accurately based on the data provided above.`;
       },
     };
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }
-    );
+    let geminiRes: Response | null = null;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    if (!geminiRes.ok) {
-      const errorText = await geminiRes.text();
+    while (attempts < maxAttempts) {
+      attempts++;
+      geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (geminiRes.ok) break;
+
+      // If it's a 503 (high demand) or 429 (rate limit), retry after a short delay
+      if ((geminiRes.status === 503 || geminiRes.status === 429) && attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1500 * attempts));
+        continue;
+      }
+      break;
+    }
+
+    if (!geminiRes || !geminiRes.ok) {
+      const errorText = geminiRes ? await geminiRes.text() : 'No response';
       console.error('Gemini API Error:', errorText);
       return NextResponse.json({ error: 'Failed to generate chat response' }, { status: 500 });
     }
