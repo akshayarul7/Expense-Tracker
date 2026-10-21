@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Gift, ExternalLink, Edit2, Trash2, CheckCircle2 } from 'lucide-react';
+import { Plus, Gift, ExternalLink, Edit2, Trash2, CheckCircle2, Store } from 'lucide-react';
 import { getWishlistItems, deleteWishlistItem, updateWishlistItem } from '@/lib/db-helpers';
 import { WishlistItem } from '@/lib/db';
 import { WishlistForm } from '@/components/wishlist/wishlist-form';
 import { Badge } from '@/components/ui/badge';
+import { getStoreNameFromUrl } from '@/lib/store-extractor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -117,73 +118,84 @@ export default function WishlistPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {items.map((item) => (
-            <Card key={item.id} className={`flex flex-col overflow-hidden transition-all ${item.status === 'bought' ? 'opacity-75 bg-muted/50' : ''}`}>
-              {/* Image Section */}
-              <div className="relative h-48 bg-muted flex items-center justify-center border-b">
-                {item.imageUrl ? (
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.name} 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                <Gift className={`h-12 w-12 text-muted-foreground/30 absolute ${item.imageUrl ? 'hidden' : ''}`} />
-                
-                {item.status === 'bought' && (
-                  <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-[2px]">
-                    <Badge variant="secondary" className="text-sm px-3 py-1 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      Purchased
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              <CardHeader className="pb-2">
-                <CardTitle className="line-clamp-1" title={item.name}>{item.name}</CardTitle>
-                <div className="text-xl font-bold">${item.price.toFixed(2)}</div>
-              </CardHeader>
-              
-              <CardContent className="flex-1">
-                {item.url && (
-                  <a 
-                    href={item.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary flex items-center hover:underline"
-                  >
-                    View Product <ExternalLink className="ml-1 h-3 w-3" />
-                  </a>
-                )}
-              </CardContent>
-
-              <CardFooter className="flex justify-between border-t pt-4 bg-muted/20">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleMarkBought(item)}
-                  className={item.status === 'bought' ? 'text-green-600' : ''}
-                >
-                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                  {item.status === 'bought' ? 'Mark as Unbought' : 'Mark Bought'}
-                </Button>
-                
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
-                    <Edit2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setItemToDelete(item)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+          {items.map((item) => {
+            const storeName = getStoreNameFromUrl(item.url);
+            return (
+              <Card key={item.id} className={`flex flex-col overflow-hidden transition-all ${item.status === 'bought' ? 'opacity-75 bg-muted/50' : ''}`}>
+                {/* Image Section */}
+                <div className="relative h-48 bg-muted flex items-center justify-center border-b">
+                  {item.imageUrl ? (
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.name} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <Gift className={`h-12 w-12 text-muted-foreground/30 absolute ${item.imageUrl ? 'hidden' : ''}`} />
+                  
+                  {item.status === 'bought' && (
+                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center backdrop-blur-[2px]">
+                      <Badge variant="secondary" className="text-sm px-3 py-1 flex items-center gap-1">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        Purchased
+                      </Badge>
+                    </div>
+                  )}
                 </div>
-              </CardFooter>
-            </Card>
-          ))}
+
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="line-clamp-1" title={item.name}>{item.name}</CardTitle>
+                    {storeName && (
+                      <Badge variant="outline" className="text-xs shrink-0 font-medium flex items-center gap-1">
+                        <Store className="h-3 w-3" />
+                        {storeName}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-xl font-bold">${item.price.toFixed(2)}</div>
+                </CardHeader>
+                
+                <CardContent className="flex-1">
+                  {item.url && (
+                    <a 
+                      href={item.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary inline-flex items-center gap-1 hover:underline font-medium"
+                    >
+                      View on {storeName || 'Store'} <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </CardContent>
+
+                <CardFooter className="flex justify-between border-t pt-4 bg-muted/20">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleMarkBought(item)}
+                    className={item.status === 'bought' ? 'text-green-600' : ''}
+                  >
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                    {item.status === 'bought' ? 'Mark as Unbought' : 'Mark Bought'}
+                  </Button>
+                  
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                      <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setItemToDelete(item)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
 

@@ -13,6 +13,7 @@ export interface Expense {
   recurringFrequency?: RecurringFrequency;
   createdAt: Date;
   plaidId?: string;
+  isExpected?: boolean;
 }
 
 export interface Budget {

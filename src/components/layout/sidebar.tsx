@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button"
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Expenses", href: "/expenses", icon: Receipt },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Recurring", href: "/expenses/recurring", icon: Repeat },
   { name: "Budgets", href: "/budgets", icon: PiggyBank },
   { name: "Wishlist", href: "/wishlist", icon: Gift },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

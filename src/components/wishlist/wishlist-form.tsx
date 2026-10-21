@@ -5,8 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Store } from 'lucide-react';
 import { WishlistItem } from '@/lib/db';
 import { addWishlistItem, updateWishlistItem } from '@/lib/db-helpers';
+import { getStoreNameFromUrl } from '@/lib/store-extractor';
 
 interface WishlistFormProps {
   open: boolean;
@@ -101,10 +103,16 @@ export function WishlistForm({ open, onOpenChange, onSuccess, initialData }: Wis
             <Input
               id="url"
               type="url"
-              placeholder="https://amazon.com/..."
+              placeholder="https://pacsun.com/..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
+            {url.trim() && getStoreNameFromUrl(url) && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Store className="h-3 w-3 text-muted-foreground" />
+                Store detected: <span className="font-medium text-foreground">{getStoreNameFromUrl(url)}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

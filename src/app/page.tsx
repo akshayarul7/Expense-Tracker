@@ -7,19 +7,24 @@ import { Expense, Budget } from '@/lib/db';
 
 import { formatCurrency } from '@/lib/constants';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DollarSign, Receipt, TrendingUp, AlertTriangle } from 'lucide-react';
+import { DollarSign, Receipt, TrendingUp, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category-pie-chart';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from '@/components/ui/progress';
 import { SpendingInsights } from '@/components/dashboard/spending-insights';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
   const currentMonthDate = new Date();
   
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [dialogSort, setDialogSort] = useState<{column: 'date' | 'amount', dir: 'desc' | 'asc'}>({ column: 'date', dir: 'desc' });
 
   const fetchData = useCallback(async () => {
     try {
@@ -151,41 +156,86 @@ export default function DashboardPage() {
 
       <SpendingInsights />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Daily Spending ({format(currentMonthDate, 'MMM yyyy')})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <AreaChart data={dailyData} margin={{ left: -20, right: 12, top: 12, bottom: 0 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
-                <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <defs>
-                  <linearGradient id="fillTotalDashboard" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <Area dataKey="total" type="natural" fill="url(#fillTotalDashboard)" fillOpacity={0.4} stroke="var(--color-total)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily Spending ({format(currentMonthDate, 'MMM yyyy')})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <AreaChart data={dailyData} margin={{ left: -20, right: 12, top: 12, bottom: 0 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} domain={[0, 'auto']} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              <defs>
+                <linearGradient id="fillTotalDashboard" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <Area dataKey="total" type="monotone" fill="url(#fillTotalDashboard)" fillOpacity={0.4} stroke="var(--color-total)" strokeWidth={2} />
+            </AreaChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Category Breakdown</CardTitle>
           </CardHeader>
           <CardContent>
             {pieChartData.length > 0 ? (
-              <CategoryPieChart data={pieChartData} />
+              <CategoryPieChart data={pieChartData} onCategoryClick={setSelectedCategory} />
             ) : (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                 No expenses this month.
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-[350px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">%</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pieChartData.map((d) => (
+                    <TableRow 
+                      key={d.category}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedCategory(d.category)}
+                    >
+                      <TableCell className="font-medium flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                        <span className="truncate">{d.category}</span>
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(d.total)}</TableCell>
+                      <TableCell className="text-right">
+                        {totalSpent > 0 ? ((d.total / totalSpent) * 100).toFixed(1) : 0}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {pieChartData.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
+                        No data available.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -240,6 +290,69 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!selectedCategory} onOpenChange={(open) => !open && setSelectedCategory(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{selectedCategory} Expenses</DialogTitle>
+            <DialogDescription>
+              {format(currentMonthDate, 'MMMM yyyy')}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[400px] overflow-y-auto border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setDialogSort(s => ({ column: 'date', dir: s.column === 'date' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      className="h-8 p-0 hover:bg-transparent data-[state=open]:bg-accent"
+                    >
+                      <span>Date</span>
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setDialogSort(s => ({ column: 'amount', dir: s.column === 'amount' && s.dir === 'desc' ? 'asc' : 'desc' }))}
+                      className="-mr-4 h-8 justify-end data-[state=open]:bg-accent"
+                    >
+                      <span>Amount</span>
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthlyExpenses
+                  .filter(e => e.category === selectedCategory)
+                  .sort((a, b) => {
+                    if (dialogSort.column === 'date') {
+                      return dialogSort.dir === 'desc' 
+                        ? new Date(b.date).getTime() - new Date(a.date).getTime()
+                        : new Date(a.date).getTime() - new Date(b.date).getTime();
+                    } else {
+                      return dialogSort.dir === 'desc' 
+                        ? b.amount - a.amount 
+                        : a.amount - b.amount;
+                    }
+                  })
+                  .map(expense => (
+                  <TableRow key={expense.id}>
+                    <TableCell>{format(new Date(expense.date), 'MMM d')}</TableCell>
+                    <TableCell>{expense.name || expense.category}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(expense.amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

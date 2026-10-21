@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { MonthlyChart } from '@/components/reports/monthly-chart';
 import { TrendChart } from '@/components/reports/trend-chart';
-import { CategoryPieChart, CATEGORY_COLORS } from '@/components/reports/category-pie-chart';
 import { formatCurrency } from '@/lib/constants';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -23,6 +22,11 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryViewType, setCategoryViewType] = useState<'monthly' | 'yearly'>('monthly');
+
+  // Trends state
+  const [trendView, setTrendView] = useState<'6months' | 'year'>('6months');
+  const [trendYear, setTrendYear] = useState(() => new Date().getFullYear());
   
   // Dialog table state
   const [dialogSort, setDialogSort] = useState<{column: 'date' | 'amount', dir: 'desc' | 'asc'}>({ column: 'date', dir: 'desc' });
@@ -58,9 +62,10 @@ export default function ReportsPage() {
       if (y <= new Date().getFullYear()) years.add(y);
     });
     years.add(new Date().getFullYear()); // Always include current year
-    years.add(selectedYear); // Always include the selected year so the dropdown doesn't break when navigating to empty years
+    years.add(selectedYear);
+    years.add(trendYear);
     return Array.from(years).sort((a, b) => b - a);
-  }, [expenses, selectedYear]);
+  }, [expenses, selectedYear, trendYear]);
 
   const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -72,6 +77,8 @@ export default function ReportsPage() {
   const currentRealYear = currentRealDate.getFullYear();
 
   const isNextMonthDisabled = selectedYear > currentRealYear || (selectedYear === currentRealYear && selectedMonth >= currentRealMonth);
+  const isNextYearDisabled = selectedYear >= currentRealYear;
+  const isNextTrendYearDisabled = trendYear >= currentRealYear;
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -94,51 +101,110 @@ export default function ReportsPage() {
   };
 
   // Monthly Overview Data
-  const start = startOfMonth(currentMonth);
-  const end = endOfMonth(currentMonth);
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
   
-  const monthlyExpenses = expenses.filter(e => {
-    const d = new Date(e.date);
-    return d >= start && d <= end;
-  });
+  const monthlyExpenses = useMemo(() => {
+    return expenses.filter(e => {
+      const d = new Date(e.date);
+      return d >= monthStart && d <= monthEnd;
+    });
+  }, [expenses, monthStart, monthEnd]);
 
-  const categoryTotals = monthlyExpenses.reduce((acc, curr) => {
-    acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  const monthlyCategoryTotals = useMemo(() => {
+    return monthlyExpenses.reduce((acc, curr) => {
+      acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [monthlyExpenses]);
 
-  const monthlyChartData = Object.entries(categoryTotals)
-    .map(([category, total]) => ({ category, total }))
-    .sort((a, b) => b.total - a.total);
+  const monthlyChartData = useMemo(() => {
+    return Object.entries(monthlyCategoryTotals)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [monthlyCategoryTotals]);
 
-  const pieChartData = monthlyChartData.map(d => ({
-    ...d,
-    fill: CATEGORY_COLORS[d.category] || CATEGORY_COLORS['Other']
-  }));
+  const monthlyTotalSpent = monthlyChartData.reduce((sum, item) => sum + item.total, 0);
+  const daysInMonth = monthEnd.getDate();
+  const monthlyAverageDaily = monthlyTotalSpent / daysInMonth;
+  const monthlyHighestCategory = monthlyChartData.length > 0 ? monthlyChartData[0] : null;
 
-  const totalSpent = monthlyChartData.reduce((sum, item) => sum + item.total, 0);
-  const daysInMonth = end.getDate();
-  const averageDaily = totalSpent / daysInMonth;
-  const highestCategory = monthlyChartData.length > 0 ? monthlyChartData[0] : null;
+  // Yearly Overview Data
+  const yearStart = useMemo(() => new Date(selectedYear, 0, 1, 0, 0, 0, 0), [selectedYear]);
+  const yearEnd = useMemo(() => new Date(selectedYear, 11, 31, 23, 59, 59, 999), [selectedYear]);
+
+  const yearlyExpenses = useMemo(() => {
+    return expenses.filter(e => {
+      const d = new Date(e.date);
+      return d >= yearStart && d <= yearEnd;
+    });
+  }, [expenses, yearStart, yearEnd]);
+
+  const yearlyCategoryTotals = useMemo(() => {
+    return yearlyExpenses.reduce((acc, curr) => {
+      acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [yearlyExpenses]);
+
+  const yearlyChartData = useMemo(() => {
+    return Object.entries(yearlyCategoryTotals)
+      .map(([category, total]) => ({ category, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [yearlyCategoryTotals]);
+
+  const yearlyTotalSpent = yearlyChartData.reduce((sum, item) => sum + item.total, 0);
+  const monthsElapsedInYear = selectedYear === currentRealYear ? (currentRealMonth + 1) : 12;
+  const yearlyMonthlyAvg = yearlyTotalSpent / (monthsElapsedInYear || 1);
+  const yearlyHighestCategory = yearlyChartData.length > 0 ? yearlyChartData[0] : null;
 
   // Trend Data (Last 6 Months)
-  const trendData = Array.from({ length: 6 }).map((_, i) => {
-    const d = subMonths(new Date(), 5 - i);
-    const monthStart = startOfMonth(d);
-    const monthEnd = endOfMonth(d);
-    
-    const monthTotal = expenses
-      .filter(e => {
-        const ed = new Date(e.date);
-        return ed >= monthStart && ed <= monthEnd;
-      })
-      .reduce((sum, e) => sum + e.amount, 0);
+  const sixMonthsTrendData = useMemo(() => {
+    return Array.from({ length: 6 }).map((_, i) => {
+      const d = subMonths(new Date(), 5 - i);
+      const mStart = startOfMonth(d);
+      const mEnd = endOfMonth(d);
+      
+      const monthTotal = expenses
+        .filter(e => {
+          const ed = new Date(e.date);
+          return ed >= mStart && ed <= mEnd;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
 
-    return {
-      month: format(d, 'MMM yy'),
-      total: monthTotal,
-    };
-  }).reverse();
+      return {
+        month: format(d, 'MMM yy'),
+        total: monthTotal,
+      };
+    }).reverse();
+  }, [expenses]);
+
+  // Trend Data (Full Year by Month)
+  const fullYearTrendData = useMemo(() => {
+    return Array.from({ length: 12 }).map((_, monthIndex) => {
+      const mStart = new Date(trendYear, monthIndex, 1, 0, 0, 0, 0);
+      const mEnd = new Date(trendYear, monthIndex + 1, 0, 23, 59, 59, 999);
+      
+      const monthTotal = expenses
+        .filter(e => {
+          const ed = new Date(e.date);
+          return ed >= mStart && ed <= mEnd;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      return {
+        month: MONTHS[monthIndex].substring(0, 3),
+        total: monthTotal,
+      };
+    });
+  }, [expenses, trendYear, MONTHS]);
+
+  const activeTrendData = trendView === '6months' ? sixMonthsTrendData : fullYearTrendData;
+  const activeTrendTotal = activeTrendData.reduce((sum, item) => sum + item.total, 0);
+  const activeTrendAvg = activeTrendData.length > 0 ? activeTrendTotal / activeTrendData.length : 0;
+  const activeTrendPeak = activeTrendData.reduce((max, curr) => curr.total > max.total ? curr : max, activeTrendData[0] || { month: 'N/A', total: 0 });
+
+  const activeDialogExpenses = categoryViewType === 'yearly' ? yearlyExpenses : monthlyExpenses;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
@@ -147,13 +213,14 @@ export default function ReportsPage() {
         <p className="text-muted-foreground">Analyze your spending patterns over time.</p>
       </div>
 
-      <Tabs defaultValue="categories" className="space-y-4">
+      <Tabs defaultValue="monthly" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="monthly">Monthly Overview</TabsTrigger>
+          <TabsTrigger value="yearly">Yearly Overview</TabsTrigger>
           <TabsTrigger value="trends">Trends</TabsTrigger>
         </TabsList>
 
+        {/* ===================== MONTHLY OVERVIEW ===================== */}
         <TabsContent value="monthly" className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Monthly Overview</h2>
@@ -214,7 +281,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(monthlyTotalSpent)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -222,7 +289,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm font-medium">Average Daily</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(averageDaily)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(monthlyAverageDaily)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -230,9 +297,9 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm font-medium">Highest Category</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold truncate">{highestCategory ? highestCategory.category : 'N/A'}</div>
-                {highestCategory && (
-                  <p className="text-xs text-muted-foreground">{formatCurrency(highestCategory.total)}</p>
+                <div className="text-2xl font-bold truncate">{monthlyHighestCategory ? monthlyHighestCategory.category : 'N/A'}</div>
+                {monthlyHighestCategory && (
+                  <p className="text-xs text-muted-foreground">{formatCurrency(monthlyHighestCategory.total)}</p>
                 )}
               </CardContent>
             </Card>
@@ -241,10 +308,17 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Category Spending</CardTitle>
+              <CardDescription>Click any bar to view individual transactions for that category.</CardDescription>
             </CardHeader>
             <CardContent>
               {monthlyChartData.length > 0 ? (
-                <MonthlyChart data={monthlyChartData} />
+                <MonthlyChart 
+                  data={monthlyChartData} 
+                  onCategoryClick={(cat) => {
+                    setSelectedCategory(cat);
+                    setCategoryViewType('monthly');
+                  }} 
+                />
               ) : (
                 <div className="h-[350px] flex items-center justify-center text-muted-foreground">
                   No expenses this month.
@@ -254,50 +328,24 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="trends" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>6-Month Trend</CardTitle>
-              <CardDescription>Total spending over the last 6 months.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TrendChart data={trendData} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="categories" className="space-y-4">
+        {/* ===================== YEARLY OVERVIEW ===================== */}
+        <TabsContent value="yearly" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Category Analysis</h2>
+            <h2 className="text-xl font-semibold">Yearly Overview</h2>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrevMonth}>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-9 w-9" 
+                onClick={() => setSelectedYear(prev => prev - 1)}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Select 
-                value={MONTHS[selectedMonth]} 
-                onValueChange={(val) => setSelectedMonth(MONTHS.indexOf(val as string))}
-              >
-                <SelectTrigger className="w-[120px] md:w-[140px]">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((month, index) => (
-                    <SelectItem 
-                      key={month} 
-                      value={month}
-                      disabled={selectedYear === currentRealYear && index > currentRealMonth}
-                    >
-                      {month}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
               <Select 
                 value={selectedYear.toString()} 
                 onValueChange={(val) => setSelectedYear(parseInt(val as string))}
               >
-                <SelectTrigger className="w-[90px] md:w-[100px]">
+                <SelectTrigger className="w-[110px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -312,83 +360,182 @@ export default function ReportsPage() {
                 variant="outline" 
                 size="icon" 
                 className="h-9 w-9" 
-                onClick={handleNextMonth}
-                disabled={isNextMonthDisabled}
+                onClick={() => setSelectedYear(prev => prev + 1)}
+                disabled={isNextYearDisabled}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+
+          <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Distribution</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Spent ({selectedYear})</CardTitle>
               </CardHeader>
               <CardContent>
-                {pieChartData.length > 0 ? (
-                  <CategoryPieChart data={pieChartData} />
-                ) : (
-                  <div className="h-[350px] flex items-center justify-center text-muted-foreground">
-                    No expenses this month.
-                  </div>
+                <div className="text-2xl font-bold">{formatCurrency(yearlyTotalSpent)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Average</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(yearlyMonthlyAvg)}</div>
+                <p className="text-xs text-muted-foreground">across {monthsElapsedInYear} month{monthsElapsedInYear === 1 ? '' : 's'}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Highest Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold truncate">{yearlyHighestCategory ? yearlyHighestCategory.category : 'N/A'}</div>
+                {yearlyHighestCategory && (
+                  <p className="text-xs text-muted-foreground">{formatCurrency(yearlyHighestCategory.total)}</p>
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Category Spending ({selectedYear})</CardTitle>
+              <CardDescription>Click any bar to view individual transactions for {selectedYear}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {yearlyChartData.length > 0 ? (
+                <MonthlyChart 
+                  data={yearlyChartData} 
+                  onCategoryClick={(cat) => {
+                    setSelectedCategory(cat);
+                    setCategoryViewType('yearly');
+                  }} 
+                />
+              ) : (
+                <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                  No expenses recorded for {selectedYear}.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===================== TRENDS ===================== */}
+        <TabsContent value="trends" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold">Spending Trends</h2>
+            <div className="flex items-center space-x-2">
+              <Select 
+                value={trendView} 
+                onValueChange={(val) => setTrendView(val as '6months' | 'year')}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                  <SelectItem value="year">Full Year</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {trendView === 'year' && (
+                <div className="flex items-center space-x-1">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-9 w-9" 
+                    onClick={() => setTrendYear(prev => prev - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Select 
+                    value={trendYear.toString()} 
+                    onValueChange={(val) => setTrendYear(parseInt(val as string))}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-9 w-9" 
+                    onClick={() => setTrendYear(prev => prev + 1)}
+                    disabled={isNextTrendYearDisabled}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
             <Card>
-              <CardHeader>
-                <CardTitle>Details</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {trendView === '6months' ? 'Total (Last 6 Months)' : `Total (${trendYear})`}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">%</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pieChartData.map((d) => (
-                      <TableRow 
-                        key={d.category}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => setSelectedCategory(d.category)}
-                      >
-                        <TableCell className="font-medium flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.fill }} />
-                          {d.category}
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(d.total)}</TableCell>
-                        <TableCell className="text-right">
-                          {totalSpent > 0 ? ((d.total / totalSpent) * 100).toFixed(1) : 0}%
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {pieChartData.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
-                          No data available.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                <div className="text-2xl font-bold">{formatCurrency(activeTrendTotal)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Average</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(activeTrendAvg)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Peak Month</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold truncate">{activeTrendPeak.month}</div>
+                <p className="text-xs text-muted-foreground">{formatCurrency(activeTrendPeak.total)}</p>
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {trendView === '6months' ? '6-Month Spending Trend' : `Spending Trend (${trendYear})`}
+              </CardTitle>
+              <CardDescription>
+                {trendView === '6months' 
+                  ? 'Total spending across the last 6 months.' 
+                  : `Month-by-month spending across ${trendYear}.`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrendChart data={activeTrendData} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
+      {/* Category Expenses Drill-Down Dialog */}
       <Dialog open={!!selectedCategory} onOpenChange={(open) => !open && setSelectedCategory(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{selectedCategory} Expenses</DialogTitle>
             <DialogDescription>
-              {format(currentMonth, 'MMMM yyyy')}
+              {categoryViewType === 'yearly' ? selectedYear.toString() : format(currentMonth, 'MMMM yyyy')}
             </DialogDescription>
           </DialogHeader>
-          
-
 
           <div className="max-h-[400px] overflow-y-auto border rounded-md">
             <Table>
@@ -418,7 +565,7 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {monthlyExpenses
+                {activeDialogExpenses
                   .filter(e => e.category === selectedCategory)
                   .sort((a, b) => {
                     if (dialogSort.column === 'date') {
@@ -433,7 +580,7 @@ export default function ReportsPage() {
                   })
                   .map(expense => (
                   <TableRow key={expense.id}>
-                    <TableCell>{format(new Date(expense.date), 'MMM d')}</TableCell>
+                    <TableCell>{format(new Date(expense.date), categoryViewType === 'yearly' ? 'MMM d, yyyy' : 'MMM d')}</TableCell>
                     <TableCell>{expense.name || expense.category}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(expense.amount)}</TableCell>
                   </TableRow>

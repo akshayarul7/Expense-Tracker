@@ -5,7 +5,7 @@ import { useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getExpensesByCategory, getExpensesByDateRange } from '@/lib/db-helpers';
 import { format } from 'date-fns';
-import { MoreHorizontal, Repeat, ArrowUpDown, Search } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, Search } from 'lucide-react';
 import {
   LegacyColumnDef,
   getCoreRowModel,
@@ -19,6 +19,7 @@ import { deleteExpense } from '@/lib/db-helpers';
 import { startOfYear, endOfYear } from 'date-fns';
 import { formatCurrency } from '@/lib/constants';
 import { CATEGORIES } from '@/lib/constants';
+import { MerchantLogo } from '@/components/expenses/merchant-logo';
 
 import {
   Table,
@@ -74,6 +75,58 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
       const start = new Date('2000-01-01');
       const end = new Date('2100-01-01');
       let data = await getExpensesByDateRange(start, end);
+
+      // Generate anticipated recurring transactions for the current month
+      const now = new Date();
+      const currentRealMonth = now.getMonth();
+      const currentRealYear = now.getFullYear();
+      const daysInCurrentMonth = new Date(currentRealYear, currentRealMonth + 1, 0).getDate();
+
+      // Find all recurring subscriptions and their latest past occurrence
+      const recurringMap = new Map<string, Expense>();
+      for (const e of data) {
+        if (e.isRecurring && e.name) {
+          const key = e.name.toLowerCase().trim();
+          const existing = recurringMap.get(key);
+          if (!existing || new Date(e.date).getTime() > new Date(existing.date).getTime()) {
+            recurringMap.set(key, e);
+          }
+        }
+      }
+
+      const anticipatedExpenses: Expense[] = [];
+      for (const [key, sub] of recurringMap.entries()) {
+        // Check if an actual real transaction for this subscription already occurred in the current month
+        const alreadyOccurredThisMonth = data.some((e) => {
+          const d = new Date(e.date);
+          const isSameMonthAndYear = d.getFullYear() === currentRealYear && d.getMonth() === currentRealMonth;
+          if (!isSameMonthAndYear) return false;
+          const eKey = (e.name || e.category).toLowerCase().trim();
+          return eKey === key;
+        });
+
+        if (!alreadyOccurredThisMonth) {
+          const pastDay = new Date(sub.date).getDate();
+          const anticipatedDay = Math.min(pastDay, daysInCurrentMonth);
+          const anticipatedDate = new Date(currentRealYear, currentRealMonth, anticipatedDay, 12, 0, 0);
+
+          anticipatedExpenses.push({
+            id: `expected-${key}-${currentRealYear}-${currentRealMonth}`,
+            name: sub.name,
+            amount: sub.amount,
+            originalAmount: sub.originalAmount,
+            category: sub.category,
+            date: anticipatedDate,
+            notes: 'Anticipated recurring transaction',
+            isRecurring: true,
+            recurringFrequency: sub.recurringFrequency,
+            createdAt: now,
+            isExpected: true,
+          });
+        }
+      }
+
+      data = [...data, ...anticipatedExpenses];
 
       const years = new Set<number>();
       data.forEach(e => {
@@ -154,24 +207,27 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
     {
       accessorKey: 'name',
       header: 'Name',
-      cell: ({ row }) => <div className="font-medium">{row.original.name || row.original.category}</div>,
+      cell: ({ row }) => {
+        const isExpected = row.original.isExpected;
+        return (
+          <div className="flex items-center gap-2.5">
+            <MerchantLogo name={row.original.name || row.original.category} />
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{row.original.name || row.original.category}</span>
+              {isExpected && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-dashed text-muted-foreground font-normal not-italic">
+                  Expected
+                </Badge>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'category',
       header: 'Category',
       cell: ({ row }) => <Badge variant="secondary">{row.original.category}</Badge>,
-    },
-    {
-      accessorKey: 'isRecurring',
-      header: 'Recurring',
-      cell: ({ row }) => (
-        row.original.isRecurring ? (
-          <div className="flex items-center text-muted-foreground">
-            <Repeat className="mr-2 h-4 w-4" />
-            <span className="text-xs">{row.original.recurringFrequency}</span>
-          </div>
-        ) : null
-      ),
     },
     {
       accessorKey: 'amount',
@@ -195,6 +251,29 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
       id: 'actions',
       cell: ({ row }) => {
         const expense = row.original;
+        const isExpected = expense.isExpected;
+
+        if (isExpected) {
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" className="h-8 w-8 p-0" />}
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Expected Recurring</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => onEdit({ ...expense, id: undefined })}>
+                    Record Now
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        }
+
         return (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -328,6 +407,7 @@ export function ExpenseTable({ onEdit, refreshKey, onDelete }: ExpenseTableProps
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={row.original.isExpected ? "opacity-50 bg-muted/20 hover:bg-muted/30 italic" : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

@@ -26,7 +26,13 @@ export const CATEGORY_COLORS: Record<string, string> = {
 
 const defaultColor = 'oklch(0.6 0.05 0)';
 
-export function CategoryPieChart({ data }: { data: { category: string; total: number; fill: string }[] }) {
+export function CategoryPieChart({ 
+  data,
+  onCategoryClick,
+}: { 
+  data: { category: string; total: number; fill: string }[];
+  onCategoryClick?: (category: string) => void;
+}) {
   const chartData = data.map(d => ({
     category: d.category,
     total: d.total,
@@ -69,6 +75,8 @@ export function CategoryPieChart({ data }: { data: { category: string; total: nu
           innerRadius={60}
           outerRadius={80}
           strokeWidth={5}
+          onClick={(entry: any) => onCategoryClick && entry?.category && onCategoryClick(entry.category)}
+          className={onCategoryClick ? "cursor-pointer" : undefined}
         >
           <Label
             content={({ viewBox }) => {

@@ -1,20 +1,20 @@
 'use client';
 
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 
 const chartConfig = {
   total: {
     label: "Total Spent",
     color: "hsl(var(--chart-1))",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
 export function TrendChart({ data }: { data: { month: string; total: number }[] }) {
   return (
@@ -40,6 +40,7 @@ export function TrendChart({ data }: { data: { month: string; total: number }[] 
           tickLine={false}
           axisLine={false}
           tickFormatter={(value) => `$${value}`}
+          domain={[0, 'auto']}
         />
         <ChartTooltip
           cursor={false}
@@ -61,7 +62,7 @@ export function TrendChart({ data }: { data: { month: string; total: number }[] 
         </defs>
         <Area
           dataKey="total"
-          type="natural"
+          type="monotone"
           fill="url(#fillTotal)"
           fillOpacity={0.4}
           stroke="var(--color-total)"
@@ -69,5 +70,5 @@ export function TrendChart({ data }: { data: { month: string; total: number }[] 
         />
       </AreaChart>
     </ChartContainer>
-  )
+  );
 }
